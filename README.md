@@ -143,11 +143,11 @@ The application will gracefully handle missing dependencies and show helpful ins
 smart-markdown-editor/
 ├── markdown_editor.py    # Main application file
 ├── requirements.txt      # Python dependencies
-├── README.md            # Project documentation
-├── LICENSE              # MIT License
-├── .gitignore           # Git ignore rules
-├── test_exports.py      # Test script for export functionality
-└── test_sample.md       # Sample markdown file for testing
+├── README.md             # Project documentation
+├── LICENSE               # MIT License
+├── .gitignore            # Git ignore rules
+├── test_exports.py       # Test script for export functionality
+└── test_sample.md        # Sample markdown file for testing
 ```
 
 ## Contributing

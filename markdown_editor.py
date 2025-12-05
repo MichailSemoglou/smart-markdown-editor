@@ -247,6 +247,20 @@ class MarkdownEditor(QMainWindow):
         self.editor = QTextEdit()
         self.editor.setPlaceholderText("Type your markdown here...")
         self.editor.textChanged.connect(self.on_text_changed)
+        
+        # Set editor styling for consistent appearance
+        self.editor.setStyleSheet("""
+            QTextEdit {
+                background-color: #ffffff;
+                color: #333333;
+                border: 1px solid #ddd;
+                font-family: 'SF Mono', 'Monaco', 'Menlo', 'Consolas', monospace;
+                font-size: 14px;
+                padding: 10px;
+                selection-background-color: #0078d4;
+                selection-color: #ffffff;
+            }
+        """)
 
         # Create web view for HTML preview
         self.preview = QWebEngineView()
