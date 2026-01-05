@@ -1,5 +1,6 @@
 PySide6>=6.8.0
 markdown>=3.5.1
+pygments>=2.16.0
 python-docx>=0.8.11
 reportlab>=3.6.0
 weasyprint>=59.0

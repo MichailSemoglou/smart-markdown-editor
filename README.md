@@ -167,9 +167,9 @@ Contributions are welcome! Please feel free to submit a Pull Request. For major 
 
 ## Future Enhancements
 
-- [ ] Syntax highlighting in the editor
-- [ ] Custom themes (dark mode)
-- [ ] Find and replace functionality
+- [x] Syntax highlighting in the editor
+- [x] Custom themes (dark mode)
+- [x] Find and replace functionality
 - [ ] Custom CSS for preview
 - [ ] Auto-save functionality
 - [ ] Recent files menu

@@ -11,9 +11,10 @@ import markdown
 from PySide6.QtWidgets import (QApplication, QMainWindow, QWidget, QVBoxLayout,
                                QHBoxLayout, QTextEdit, QSplitter, QMenuBar,
                                QMenu, QFileDialog, QMessageBox, QLabel,
-                               QGroupBox, QScrollArea, QPushButton, QDockWidget)
-from PySide6.QtCore import Qt, QTimer
-from PySide6.QtGui import QFont, QColor, QPalette
+                               QGroupBox, QScrollArea, QPushButton, QDockWidget,
+                               QDialog, QLineEdit, QCheckBox)
+from PySide6.QtCore import Qt, QTimer, QRegularExpression, QSettings
+from PySide6.QtGui import QFont, QColor, QPalette, QSyntaxHighlighter, QTextCharFormat, QTextDocument
 from PySide6.QtWebEngineWidgets import QWebEngineView
 from collections import Counter
 from datetime import datetime
@@ -47,6 +48,132 @@ try:
     HTML2TEXT_AVAILABLE = True
 except ImportError:
     HTML2TEXT_AVAILABLE = False
+
+try:
+    from pygments.formatters import HtmlFormatter
+    PYGMENTS_AVAILABLE = True
+except ImportError:
+    PYGMENTS_AVAILABLE = False
+
+
+class MarkdownSyntaxHighlighter(QSyntaxHighlighter):
+    """Basic Markdown syntax highlighting for the editor."""
+
+    def __init__(self, document, dark_mode: bool = False):
+        super().__init__(document)
+        self._dark_mode = bool(dark_mode)
+        self._rule_formats = []
+        self._fence_re = QRegularExpression(r"^\s{0,3}(```|~~~)")
+        self._codeblock_format = QTextCharFormat()
+        self._build_formats()
+
+    def set_dark_mode(self, dark_mode: bool) -> None:
+        dark_mode = bool(dark_mode)
+        if dark_mode == self._dark_mode:
+            return
+        self._dark_mode = dark_mode
+        self._build_formats()
+        self.rehighlight()
+
+    def _build_formats(self) -> None:
+        self._rule_formats = []
+
+        if self._dark_mode:
+            heading_color = QColor("#2f81f7")
+            muted_color = QColor("#8b949e")
+            rule_color = QColor("#30363d")
+            code_fg = QColor("#c9d1d9")
+            code_bg = QColor("#161b22")
+            link_color = QColor("#2f81f7")
+            url_color = QColor("#3fb950")
+        else:
+            heading_color = QColor("#0b4f9c")
+            muted_color = QColor("#6a737d")
+            rule_color = QColor("#d0d7de")
+            code_fg = QColor("#0969da")
+            code_bg = QColor("#f6f8fa")
+            link_color = QColor("#0969da")
+            url_color = QColor("#1a7f37")
+
+        heading_format = QTextCharFormat()
+        heading_format.setForeground(heading_color)
+        heading_format.setFontWeight(QFont.Bold)
+        self._add_rule(r"^\s{0,3}#{1,6} .*", heading_format)
+
+        blockquote_format = QTextCharFormat()
+        blockquote_format.setForeground(muted_color)
+        self._add_rule(r"^\s{0,3}>\s.*", blockquote_format)
+
+        list_marker_format = QTextCharFormat()
+        list_marker_format.setForeground(muted_color)
+        list_marker_format.setFontWeight(QFont.Bold)
+        self._add_rule(r"^\s{0,3}([-*+])\s+", list_marker_format)
+        self._add_rule(r"^\s{0,3}(\d+)\.\s+", list_marker_format)
+
+        hr_format = QTextCharFormat()
+        hr_format.setForeground(rule_color)
+        self._add_rule(r"^\s{0,3}(-{3,}|\*{3,}|_{3,})\s*$", hr_format)
+
+        bold_format = QTextCharFormat()
+        bold_format.setFontWeight(QFont.Bold)
+        self._add_rule(r"\*\*[^\*\n]+\*\*", bold_format)
+        self._add_rule(r"__[^_\n]+__", bold_format)
+
+        italic_format = QTextCharFormat()
+        italic_format.setFontItalic(True)
+        # Keep italics conservative to reduce false positives.
+        self._add_rule(r"(?<!\*)\*[^\*\n]+\*(?!\*)", italic_format)
+        self._add_rule(r"(?<!_)_[^_\n]+_(?!_)", italic_format)
+
+        inline_code_format = QTextCharFormat()
+        inline_code_format.setForeground(code_fg)
+        inline_code_format.setBackground(code_bg)
+        self._add_rule(r"`[^`\n]+`", inline_code_format)
+
+        link_text_format = QTextCharFormat()
+        link_text_format.setForeground(link_color)
+        self._add_rule(r"\[[^\]]+\](?=\()", link_text_format)
+
+        link_url_format = QTextCharFormat()
+        link_url_format.setForeground(url_color)
+        self._add_rule(r"\([^\)\s]+\)", link_url_format)
+
+        self._codeblock_format = QTextCharFormat()
+        self._codeblock_format.setForeground(code_fg if self._dark_mode else QColor("#24292f"))
+        self._codeblock_format.setBackground(code_bg)
+        self._codeblock_format.setFontFamily("SF Mono")
+
+    def _add_rule(self, pattern: str, fmt: QTextCharFormat) -> None:
+        self._rule_formats.append((QRegularExpression(pattern), fmt))
+
+    def highlightBlock(self, text: str) -> None:
+        in_code_block = self.previousBlockState() == 1
+
+        fence_match = self._fence_re.match(text)
+        is_fence_line = fence_match.hasMatch()
+
+        if in_code_block:
+            self.setFormat(0, len(text), self._codeblock_format)
+            if is_fence_line:
+                self.setCurrentBlockState(0)
+            else:
+                self.setCurrentBlockState(1)
+            return
+
+        if is_fence_line:
+            self.setFormat(0, len(text), self._codeblock_format)
+            self.setCurrentBlockState(1)
+            return
+
+        self.setCurrentBlockState(0)
+        for regex, fmt in self._rule_formats:
+            it = regex.globalMatch(text)
+            while it.hasNext():
+                match = it.next()
+                start = match.capturedStart()
+                length = match.capturedLength()
+                if length > 0:
+                    self.setFormat(start, length, fmt)
 
 
 class MarkdownAnalyzer:
@@ -218,6 +345,11 @@ class MarkdownEditor(QMainWindow):
         self.setWindowTitle("Markdown Editor - Smart Assistant")
         self.setGeometry(100, 100, 1400, 900)
 
+        self._settings = QSettings("smart-markdown-editor", "MarkdownEditor")
+        self._dark_mode = bool(self._settings.value("darkMode", False, type=bool))
+
+        self._pygments_css_by_theme = {"light": None, "dark": None}
+
         # Initialize UI
         self.init_ui()
 
@@ -247,20 +379,11 @@ class MarkdownEditor(QMainWindow):
         self.editor = QTextEdit()
         self.editor.setPlaceholderText("Type your markdown here...")
         self.editor.textChanged.connect(self.on_text_changed)
+
+        # Syntax highlighting for markdown
+        self._syntax_highlighter = MarkdownSyntaxHighlighter(self.editor.document(), dark_mode=self._dark_mode)
         
-        # Set editor styling for consistent appearance
-        self.editor.setStyleSheet("""
-            QTextEdit {
-                background-color: #ffffff;
-                color: #333333;
-                border: 1px solid #ddd;
-                font-family: 'SF Mono', 'Monaco', 'Menlo', 'Consolas', monospace;
-                font-size: 14px;
-                padding: 10px;
-                selection-background-color: #0078d4;
-                selection-color: #ffffff;
-            }
-        """)
+        # Theming is applied via apply_theme()
 
         # Create web view for HTML preview
         self.preview = QWebEngineView()
@@ -283,6 +406,9 @@ class MarkdownEditor(QMainWindow):
 
         # Create menu bar
         self.create_menu_bar()
+
+        # Apply theme after UI is constructed
+        self.apply_theme()
 
     def create_assistant_panel(self):
         """Create the Smart Markdown Assistant panel."""
@@ -445,6 +571,284 @@ class MarkdownEditor(QMainWindow):
         redo_action = edit_menu.addAction("Redo")
         redo_action.setShortcut("Ctrl+Y")
         redo_action.triggered.connect(self.editor.redo)
+
+        edit_menu.addSeparator()
+
+        find_action = edit_menu.addAction("Find...")
+        find_action.setShortcut("Ctrl+F")
+        find_action.triggered.connect(self.open_find_dialog)
+
+        replace_action = edit_menu.addAction("Replace...")
+        replace_action.setShortcut("Ctrl+H")
+        replace_action.triggered.connect(self.open_replace_dialog)
+
+        # View menu
+        view_menu = menubar.addMenu("View")
+
+        self.dark_mode_action = view_menu.addAction("Dark Mode")
+        self.dark_mode_action.setCheckable(True)
+        self.dark_mode_action.setChecked(self._dark_mode)
+        self.dark_mode_action.triggered.connect(self.toggle_dark_mode)
+
+    def _ensure_find_replace_dialog(self) -> None:
+        if hasattr(self, "_find_replace_dialog") and self._find_replace_dialog is not None:
+            return
+
+        dlg = QDialog(self)
+        dlg.setWindowTitle("Find / Replace")
+        dlg.setModal(False)
+
+        layout = QVBoxLayout()
+
+        find_row = QHBoxLayout()
+        find_row.addWidget(QLabel("Find:"))
+        self._find_input = QLineEdit()
+        self._find_input.setPlaceholderText("Text to find")
+        find_row.addWidget(self._find_input)
+        layout.addLayout(find_row)
+
+        replace_row = QHBoxLayout()
+        replace_row.addWidget(QLabel("Replace:"))
+        self._replace_input = QLineEdit()
+        self._replace_input.setPlaceholderText("Replacement text")
+        replace_row.addWidget(self._replace_input)
+        layout.addLayout(replace_row)
+
+        options_row = QHBoxLayout()
+        self._match_case_cb = QCheckBox("Match case")
+        options_row.addWidget(self._match_case_cb)
+        options_row.addStretch()
+        layout.addLayout(options_row)
+
+        buttons_row = QHBoxLayout()
+        self._find_prev_btn = QPushButton("Find Previous")
+        self._find_next_btn = QPushButton("Find Next")
+        self._replace_btn = QPushButton("Replace")
+        self._replace_all_btn = QPushButton("Replace All")
+        close_btn = QPushButton("Close")
+
+        self._find_prev_btn.clicked.connect(lambda: self.find_text(backward=True))
+        self._find_next_btn.clicked.connect(lambda: self.find_text(backward=False))
+        self._replace_btn.clicked.connect(self.replace_one)
+        self._replace_all_btn.clicked.connect(self.replace_all)
+        close_btn.clicked.connect(dlg.close)
+
+        buttons_row.addWidget(self._find_prev_btn)
+        buttons_row.addWidget(self._find_next_btn)
+        buttons_row.addWidget(self._replace_btn)
+        buttons_row.addWidget(self._replace_all_btn)
+        buttons_row.addWidget(close_btn)
+        layout.addLayout(buttons_row)
+
+        dlg.setLayout(layout)
+
+        self._find_input.returnPressed.connect(lambda: self.find_text(backward=False))
+        self._replace_input.returnPressed.connect(self.replace_one)
+
+        self._find_replace_dialog = dlg
+        self._apply_dialog_theme()
+
+    def open_find_dialog(self) -> None:
+        self._ensure_find_replace_dialog()
+        self._replace_input.setEnabled(False)
+        self._replace_btn.setEnabled(False)
+        self._replace_all_btn.setEnabled(False)
+        self._find_replace_dialog.show()
+        self._find_replace_dialog.raise_()
+        self._find_replace_dialog.activateWindow()
+        self._find_input.setFocus()
+        self._find_input.selectAll()
+
+    def open_replace_dialog(self) -> None:
+        self._ensure_find_replace_dialog()
+        self._replace_input.setEnabled(True)
+        self._replace_btn.setEnabled(True)
+        self._replace_all_btn.setEnabled(True)
+        self._find_replace_dialog.show()
+        self._find_replace_dialog.raise_()
+        self._find_replace_dialog.activateWindow()
+        self._find_input.setFocus()
+        self._find_input.selectAll()
+
+    def _text_find_flags(self, backward: bool) -> QTextDocument.FindFlags:
+        flags = QTextDocument.FindFlags()
+        if backward:
+            flags |= QTextDocument.FindBackward
+        if getattr(self, "_match_case_cb", None) is not None and self._match_case_cb.isChecked():
+            flags |= QTextDocument.FindCaseSensitively
+        return flags
+
+    def find_text(self, backward: bool = False) -> bool:
+        self._ensure_find_replace_dialog()
+        needle = self._find_input.text()
+        if not needle:
+            return False
+
+        doc = self.editor.document()
+        cursor = self.editor.textCursor()
+        flags = self._text_find_flags(backward)
+
+        found = doc.find(needle, cursor, flags)
+        if found.isNull():
+            # Wrap around
+            wrap_cursor = self.editor.textCursor()
+            if backward:
+                wrap_cursor.movePosition(wrap_cursor.End)
+            else:
+                wrap_cursor.movePosition(wrap_cursor.Start)
+
+            found = doc.find(needle, wrap_cursor, flags)
+
+        if found.isNull():
+            QMessageBox.information(self, "Find", f"'{needle}' not found")
+            return False
+
+        self.editor.setTextCursor(found)
+        self.editor.ensureCursorVisible()
+        return True
+
+    def replace_one(self) -> None:
+        self._ensure_find_replace_dialog()
+        needle = self._find_input.text()
+        if not needle:
+            return
+
+        replacement = self._replace_input.text()
+
+        cursor = self.editor.textCursor()
+        selected = cursor.selectedText()
+
+        match_case = self._match_case_cb.isChecked()
+        matches = False
+        if cursor.hasSelection():
+            if match_case:
+                matches = selected == needle
+            else:
+                matches = selected.lower() == needle.lower()
+
+        if not matches:
+            if not self.find_text(backward=False):
+                return
+            cursor = self.editor.textCursor()
+
+        cursor.beginEditBlock()
+        cursor.insertText(replacement)
+        cursor.endEditBlock()
+        self.find_text(backward=False)
+
+    def replace_all(self) -> None:
+        self._ensure_find_replace_dialog()
+        needle = self._find_input.text()
+        if not needle:
+            return
+
+        replacement = self._replace_input.text()
+        doc = self.editor.document()
+
+        flags = QTextDocument.FindFlags()
+        if self._match_case_cb.isChecked():
+            flags |= QTextDocument.FindCaseSensitively
+
+        cursor = self.editor.textCursor()
+        cursor.beginEditBlock()
+
+        # Start from beginning
+        scan_cursor = self.editor.textCursor()
+        scan_cursor.movePosition(scan_cursor.Start)
+
+        count = 0
+        while True:
+            found = doc.find(needle, scan_cursor, flags)
+            if found.isNull():
+                break
+            found.insertText(replacement)
+            count += 1
+            scan_cursor = found
+
+        cursor.endEditBlock()
+        QMessageBox.information(self, "Replace All", f"Replaced {count} occurrence(s).")
+
+    def _apply_dialog_theme(self) -> None:
+        if not hasattr(self, "_find_replace_dialog") or self._find_replace_dialog is None:
+            return
+        if self._dark_mode:
+            self._find_replace_dialog.setStyleSheet("""
+                QDialog { background-color: #0d1117; color: #c9d1d9; }
+                QLabel { color: #c9d1d9; }
+                QLineEdit { background-color: #161b22; color: #c9d1d9; border: 1px solid #30363d; padding: 4px; }
+                QCheckBox { color: #c9d1d9; }
+                QPushButton { border: 1px solid #30363d; padding: 6px 10px; }
+            """)
+        else:
+            self._find_replace_dialog.setStyleSheet("")
+
+    def toggle_dark_mode(self, checked: bool):
+        self._dark_mode = bool(checked)
+        self._settings.setValue("darkMode", self._dark_mode)
+        self.apply_theme()
+        self.update_preview()
+
+    def apply_theme(self):
+        if self._dark_mode:
+            editor_bg = "#0d1117"
+            editor_fg = "#c9d1d9"
+            border = "#30363d"
+            selection_bg = "#2f81f7"
+            selection_fg = "#ffffff"
+
+            self.editor.setStyleSheet(f"""
+                QTextEdit {{
+                    background-color: {editor_bg};
+                    color: {editor_fg};
+                    border: 1px solid {border};
+                    font-family: 'SF Mono', 'Monaco', 'Menlo', 'Consolas', monospace;
+                    font-size: 14px;
+                    padding: 10px;
+                    selection-background-color: {selection_bg};
+                    selection-color: {selection_fg};
+                }}
+            """)
+
+            self.assistant_panel.setStyleSheet(f"""
+                QWidget {{
+                    background-color: {editor_bg};
+                    color: {editor_fg};
+                }}
+                QGroupBox {{
+                    border: 1px solid {border};
+                    margin-top: 8px;
+                    padding: 8px;
+                }}
+                QGroupBox::title {{
+                    subcontrol-origin: margin;
+                    left: 10px;
+                    padding: 0 4px 0 4px;
+                }}
+                QPushButton {{
+                    border: 1px solid {border};
+                    padding: 6px 10px;
+                }}
+            """)
+        else:
+            self.editor.setStyleSheet("""
+                QTextEdit {
+                    background-color: #ffffff;
+                    color: #333333;
+                    border: 1px solid #ddd;
+                    font-family: 'SF Mono', 'Monaco', 'Menlo', 'Consolas', monospace;
+                    font-size: 14px;
+                    padding: 10px;
+                    selection-background-color: #0078d4;
+                    selection-color: #ffffff;
+                }
+            """)
+
+            self.assistant_panel.setStyleSheet("")
+
+        if hasattr(self, "_syntax_highlighter") and self._syntax_highlighter is not None:
+            self._syntax_highlighter.set_dark_mode(self._dark_mode)
+
+        self._apply_dialog_theme()
     
     def on_text_changed(self):
         # Start timer to update preview after a short delay
@@ -459,6 +863,29 @@ class MarkdownEditor(QMainWindow):
         
         # Convert markdown to HTML
         html = markdown.markdown(markdown_text, extensions=['codehilite', 'tables', 'toc'])
+
+        theme_key = "dark" if self._dark_mode else "light"
+        pygments_css = ""
+        if PYGMENTS_AVAILABLE:
+            if self._pygments_css_by_theme[theme_key] is None:
+                style_name = "monokai" if self._dark_mode else "default"
+                self._pygments_css_by_theme[theme_key] = HtmlFormatter(style=style_name).get_style_defs('.codehilite')
+            pygments_css = self._pygments_css_by_theme[theme_key]
+
+        if self._dark_mode:
+            body_bg = "#0d1117"
+            body_fg = "#c9d1d9"
+            border = "#30363d"
+            muted = "#8b949e"
+            link = "#2f81f7"
+            code_bg = "#161b22"
+        else:
+            body_bg = "#fff"
+            body_fg = "#333"
+            border = "#eaecef"
+            muted = "#6a737d"
+            link = "#0366d6"
+            code_bg = "#f6f8fa"
         
         # Add basic CSS styling
         styled_html = f"""
@@ -467,14 +894,15 @@ class MarkdownEditor(QMainWindow):
         <head>
             <meta charset="UTF-8">
             <style>
+                {pygments_css}
                 body {{
                     font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
                     line-height: 1.6;
-                    color: #333;
+                    color: {body_fg};
                     max-width: 800px;
                     margin: 0 auto;
                     padding: 20px;
-                    background-color: #fff;
+                    background-color: {body_bg};
                 }}
                 h1, h2, h3, h4, h5, h6 {{
                     margin-top: 24px;
@@ -482,27 +910,39 @@ class MarkdownEditor(QMainWindow):
                     font-weight: 600;
                     line-height: 1.25;
                 }}
-                h1 {{ font-size: 2em; border-bottom: 1px solid #eaecef; padding-bottom: 0.3em; }}
-                h2 {{ font-size: 1.5em; border-bottom: 1px solid #eaecef; padding-bottom: 0.3em; }}
+                h1 {{ font-size: 2em; border-bottom: 1px solid {border}; padding-bottom: 0.3em; }}
+                h2 {{ font-size: 1.5em; border-bottom: 1px solid {border}; padding-bottom: 0.3em; }}
                 h3 {{ font-size: 1.25em; }}
                 h4 {{ font-size: 1em; }}
                 h5 {{ font-size: 0.875em; }}
-                h6 {{ font-size: 0.85em; color: #6a737d; }}
+                h6 {{ font-size: 0.85em; color: {muted}; }}
                 p {{ margin-bottom: 16px; }}
                 code {{
-                    background-color: #f6f8fa;
+                    background-color: {code_bg};
                     border-radius: 3px;
                     font-size: 85%;
                     margin: 0;
                     padding: 0.2em 0.4em;
                 }}
                 pre {{
-                    background-color: #f6f8fa;
+                    background-color: {code_bg};
                     border-radius: 6px;
                     padding: 16px;
                     overflow: auto;
                     font-size: 85%;
                     line-height: 1.45;
+                }}
+                .codehilite {{
+                    background-color: {code_bg};
+                    border-radius: 6px;
+                    padding: 16px;
+                    overflow: auto;
+                    margin-bottom: 16px;
+                }}
+                .codehilite pre {{
+                    margin: 0;
+                    padding: 0;
+                    background: transparent;
                 }}
                 pre code {{
                     background-color: transparent;
@@ -516,8 +956,8 @@ class MarkdownEditor(QMainWindow):
                     word-wrap: normal;
                 }}
                 blockquote {{
-                    border-left: 0.25em solid #dfe2e5;
-                    color: #6a737d;
+                    border-left: 0.25em solid {border};
+                    color: {muted};
                     padding: 0 1em;
                     margin: 0 0 16px 0;
                 }}
@@ -527,15 +967,15 @@ class MarkdownEditor(QMainWindow):
                     margin-bottom: 16px;
                 }}
                 table th, table td {{
-                    border: 1px solid #dfe2e5;
+                    border: 1px solid {border};
                     padding: 6px 13px;
                 }}
                 table th {{
-                    background-color: #f6f8fa;
+                    background-color: {code_bg};
                     font-weight: 600;
                 }}
                 table tr:nth-child(2n) {{
-                    background-color: #f6f8fa;
+                    background-color: {code_bg};
                 }}
                 ul, ol {{
                     padding-left: 2em;
@@ -545,7 +985,7 @@ class MarkdownEditor(QMainWindow):
                     margin-bottom: 0.25em;
                 }}
                 a {{
-                    color: #0366d6;
+                    color: {link};
                     text-decoration: none;
                 }}
                 a:hover {{
@@ -557,7 +997,7 @@ class MarkdownEditor(QMainWindow):
                 }}
                 hr {{
                     border: none;
-                    border-top: 1px solid #eaecef;
+                    border-top: 1px solid {border};
                     height: 1px;
                     margin: 24px 0;
                 }}
@@ -835,6 +1275,10 @@ class MarkdownEditor(QMainWindow):
         """Export as HTML file."""
         markdown_text = self.editor.toPlainText()
         html = markdown.markdown(markdown_text, extensions=['codehilite', 'tables', 'toc'])
+
+        pygments_css = ""
+        if PYGMENTS_AVAILABLE:
+            pygments_css = HtmlFormatter(style="default").get_style_defs('.codehilite')
         
         styled_html = f"""<!DOCTYPE html>
 <html>
@@ -842,6 +1286,7 @@ class MarkdownEditor(QMainWindow):
     <meta charset="UTF-8">
     <title>Exported Markdown Document</title>
     <style>
+        {pygments_css}
         body {{
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
             line-height: 1.6;
