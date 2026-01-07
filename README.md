@@ -170,9 +170,9 @@ Contributions are welcome! Please feel free to submit a Pull Request. For major 
 - [x] Syntax highlighting in the editor
 - [x] Custom themes (dark mode)
 - [x] Find and replace functionality
-- [ ] Custom CSS for preview
-- [ ] Auto-save functionality
-- [ ] Recent files menu
+- [x] Custom CSS for preview
+- [x] Auto-save functionality
+- [x] Recent files menu
 
 ## License
 
