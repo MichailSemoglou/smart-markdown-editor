@@ -82,7 +82,7 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ---
 
-## [1.0.0] — 2024-01-01
+## [1.0.0]
 
 ### Added
 
@@ -91,7 +91,6 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 - Syntax highlighting in the editor (`MarkdownSyntaxHighlighter`).
 - Smart Assistant panel with document statistics and quality analysis.
 - Export to Markdown, plain text, HTML, DOCX, PDF, RTF, and ODT.
-- Light and dark theme support.
 - Find & Replace dialog.
 - Recent files menu with auto-cleanup of missing paths.
 - Auto-save (configurable interval, defaults to 30 s).
