@@ -8,28 +8,22 @@ import os
 import re
 import markdown
 from PySide6.QtWidgets import (QApplication, QMainWindow, QWidget, QVBoxLayout,
-                               QHBoxLayout, QTextEdit, QSplitter, QMenuBar,
-                               QMenu, QFileDialog, QMessageBox, QLabel,
-                               QGroupBox, QScrollArea, QPushButton, QDockWidget,
-                               QDialog, QLineEdit, QCheckBox)
+                               QHBoxLayout, QTextEdit, QSplitter, QFileDialog, QMessageBox, QLabel,
+                               QGroupBox, QPushButton, QDialog, QLineEdit, QCheckBox)
 from PySide6.QtCore import Qt, QTimer, QRegularExpression, QSettings
-from PySide6.QtGui import QFont, QColor, QPalette, QSyntaxHighlighter, QTextCharFormat, QTextDocument
+from PySide6.QtGui import QFont, QColor, QSyntaxHighlighter, QTextCharFormat, QTextDocument
 from PySide6.QtWebEngineWidgets import QWebEngineView
 from collections import Counter
-from datetime import datetime
 
 
 try:
     from docx import Document
-    from docx.shared import Inches
     DOCX_AVAILABLE = True
 except ImportError:
     DOCX_AVAILABLE = False
 
 try:
-    from reportlab.pdfgen import canvas
     from reportlab.lib.pagesizes import letter
-    from reportlab.lib.units import inch
     from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer
     from reportlab.lib.styles import getSampleStyleSheet
     PDF_AVAILABLE = True
@@ -43,7 +37,7 @@ except ImportError:
     WEASYPRINT_AVAILABLE = False
 
 try:
-    import html2text
+    import html2text as _html2text  # noqa: F401
     HTML2TEXT_AVAILABLE = True
 except ImportError:
     HTML2TEXT_AVAILABLE = False
@@ -58,41 +52,23 @@ except ImportError:
 class MarkdownSyntaxHighlighter(QSyntaxHighlighter):
     """Basic Markdown syntax highlighting for the editor."""
 
-    def __init__(self, document, dark_mode: bool = False):
+    def __init__(self, document):
         super().__init__(document)
-        self._dark_mode = bool(dark_mode)
         self._rule_formats = []
         self._fence_re = QRegularExpression(r"^\s{0,3}(```|~~~)")
         self._codeblock_format = QTextCharFormat()
         self._build_formats()
 
-    def set_dark_mode(self, dark_mode: bool) -> None:
-        dark_mode = bool(dark_mode)
-        if dark_mode == self._dark_mode:
-            return
-        self._dark_mode = dark_mode
-        self._build_formats()
-        self.rehighlight()
-
     def _build_formats(self) -> None:
         self._rule_formats = []
 
-        if self._dark_mode:
-            heading_color = QColor("#2f81f7")
-            muted_color = QColor("#8b949e")
-            rule_color = QColor("#30363d")
-            code_fg = QColor("#c9d1d9")
-            code_bg = QColor("#161b22")
-            link_color = QColor("#2f81f7")
-            url_color = QColor("#3fb950")
-        else:
-            heading_color = QColor("#0b4f9c")
-            muted_color = QColor("#6a737d")
-            rule_color = QColor("#d0d7de")
-            code_fg = QColor("#0969da")
-            code_bg = QColor("#f6f8fa")
-            link_color = QColor("#0969da")
-            url_color = QColor("#1a7f37")
+        heading_color = QColor("#0b4f9c")
+        muted_color = QColor("#6a737d")
+        rule_color = QColor("#d0d7de")
+        code_fg = QColor("#0969da")
+        code_bg = QColor("#f6f8fa")
+        link_color = QColor("#0969da")
+        url_color = QColor("#1a7f37")
 
         heading_format = QTextCharFormat()
         heading_format.setForeground(heading_color)
@@ -138,9 +114,9 @@ class MarkdownSyntaxHighlighter(QSyntaxHighlighter):
         self._add_rule(r"\([^\)\s]+\)", link_url_format)
 
         self._codeblock_format = QTextCharFormat()
-        self._codeblock_format.setForeground(code_fg if self._dark_mode else QColor("#24292f"))
+        self._codeblock_format.setForeground(QColor("#24292f"))
         self._codeblock_format.setBackground(code_bg)
-        self._codeblock_format.setFontFamily("SF Mono")
+        self._codeblock_format.setFontFamilies(["SF Mono", "Menlo", "Courier New"])
 
     def _add_rule(self, pattern: str, fmt: QTextCharFormat) -> None:
         self._rule_formats.append((QRegularExpression(pattern), fmt))
@@ -359,7 +335,6 @@ class MarkdownEditor(QMainWindow):
         self.setGeometry(100, 100, 1400, 900)
 
         self._settings = QSettings("smart-markdown-editor", "MarkdownEditor")
-        self._dark_mode = bool(self._settings.value("darkMode", False, type=bool))
 
         self.current_file = None
 
@@ -371,7 +346,7 @@ class MarkdownEditor(QMainWindow):
 
         self._recent_files = self._load_recent_files()
 
-        self._pygments_css_by_theme = {"light": None, "dark": None}
+        self._pygments_css = None
 
 
         self.init_ui()
@@ -410,7 +385,7 @@ class MarkdownEditor(QMainWindow):
         self.editor.textChanged.connect(self.on_text_changed)
 
 
-        self._syntax_highlighter = MarkdownSyntaxHighlighter(self.editor.document(), dark_mode=self._dark_mode)
+        self._syntax_highlighter = MarkdownSyntaxHighlighter(self.editor.document())
 
 
         self.preview = QWebEngineView()
@@ -433,9 +408,6 @@ class MarkdownEditor(QMainWindow):
 
 
         self.create_menu_bar()
-
-
-        self.apply_theme()
 
     def create_assistant_panel(self):
         """Create the Smart Markdown Assistant panel."""
@@ -616,13 +588,6 @@ class MarkdownEditor(QMainWindow):
 
 
         view_menu = menubar.addMenu("View")
-
-        self.dark_mode_action = view_menu.addAction("Dark Mode")
-        self.dark_mode_action.setCheckable(True)
-        self.dark_mode_action.setChecked(self._dark_mode)
-        self.dark_mode_action.triggered.connect(self.toggle_dark_mode)
-
-        view_menu.addSeparator()
 
         preview_css_action = view_menu.addAction("Preview CSS...")
         preview_css_action.triggered.connect(self.choose_preview_css)
@@ -808,88 +773,6 @@ class MarkdownEditor(QMainWindow):
         cursor.endEditBlock()
         QMessageBox.information(self, "Replace All", f"Replaced {count} occurrence(s).")
 
-    def _apply_dialog_theme(self) -> None:
-        if not hasattr(self, "_find_replace_dialog") or self._find_replace_dialog is None:
-            return
-        if self._dark_mode:
-            self._find_replace_dialog.setStyleSheet("""
-                QDialog { background-color: #0d1117; color: #c9d1d9; }
-                QLabel { color: #c9d1d9; }
-                QLineEdit { background-color: #161b22; color: #c9d1d9; border: 1px solid #30363d; padding: 4px; }
-                QCheckBox { color: #c9d1d9; }
-                QPushButton { border: 1px solid #30363d; padding: 6px 10px; }
-            """)
-        else:
-            self._find_replace_dialog.setStyleSheet("")
-
-    def toggle_dark_mode(self, checked: bool):
-        self._dark_mode = bool(checked)
-        self._settings.setValue("darkMode", self._dark_mode)
-        self.apply_theme()
-        self.update_preview()
-
-    def apply_theme(self):
-        if self._dark_mode:
-            editor_bg = "#0d1117"
-            editor_fg = "#c9d1d9"
-            border = "#30363d"
-            selection_bg = "#2f81f7"
-            selection_fg = "#ffffff"
-
-            self.editor.setStyleSheet(f"""
-                QTextEdit {{
-                    background-color: {editor_bg};
-                    color: {editor_fg};
-                    border: 1px solid {border};
-                    font-family: 'SF Mono', 'Monaco', 'Menlo', 'Consolas', monospace;
-                    font-size: 14px;
-                    padding: 10px;
-                    selection-background-color: {selection_bg};
-                    selection-color: {selection_fg};
-                }}
-            """)
-
-            self.assistant_panel.setStyleSheet(f"""
-                QWidget {{
-                    background-color: {editor_bg};
-                    color: {editor_fg};
-                }}
-                QGroupBox {{
-                    border: 1px solid {border};
-                    margin-top: 8px;
-                    padding: 8px;
-                }}
-                QGroupBox::title {{
-                    subcontrol-origin: margin;
-                    left: 10px;
-                    padding: 0 4px 0 4px;
-                }}
-                QPushButton {{
-                    border: 1px solid {border};
-                    padding: 6px 10px;
-                }}
-            """)
-        else:
-            self.editor.setStyleSheet("""
-                QTextEdit {
-                    background-color: #ffffff;
-                    color: #333333;
-                    border: 1px solid #ddd;
-                    font-family: 'SF Mono', 'Monaco', 'Menlo', 'Consolas', monospace;
-                    font-size: 14px;
-                    padding: 10px;
-                    selection-background-color: #0078d4;
-                    selection-color: #ffffff;
-                }
-            """)
-
-            self.assistant_panel.setStyleSheet("")
-
-        if hasattr(self, "_syntax_highlighter") and self._syntax_highlighter is not None:
-            self._syntax_highlighter.set_dark_mode(self._dark_mode)
-
-        self._apply_dialog_theme()
-
     def on_text_changed(self):
 
 
@@ -904,28 +787,18 @@ class MarkdownEditor(QMainWindow):
 
         html = markdown.markdown(markdown_text, extensions=['codehilite', 'tables', 'toc'])
 
-        theme_key = "dark" if self._dark_mode else "light"
         pygments_css = ""
         if PYGMENTS_AVAILABLE:
-            if self._pygments_css_by_theme[theme_key] is None:
-                style_name = "monokai" if self._dark_mode else "default"
-                self._pygments_css_by_theme[theme_key] = HtmlFormatter(style=style_name).get_style_defs('.codehilite')
-            pygments_css = self._pygments_css_by_theme[theme_key]
+            if self._pygments_css is None:
+                self._pygments_css = HtmlFormatter(style="default").get_style_defs('.codehilite')
+            pygments_css = self._pygments_css
 
-        if self._dark_mode:
-            body_bg = "#0d1117"
-            body_fg = "#c9d1d9"
-            border = "#30363d"
-            muted = "#8b949e"
-            link = "#2f81f7"
-            code_bg = "#161b22"
-        else:
-            body_bg = "#fff"
-            body_fg = "#333"
-            border = "#eaecef"
-            muted = "#6a737d"
-            link = "#0366d6"
-            code_bg = "#f6f8fa"
+        body_bg = "#fff"
+        body_fg = "#333"
+        border = "#eaecef"
+        muted = "#6a737d"
+        link = "#0366d6"
+        code_bg = "#f6f8fa"
 
 
         custom_css = self._get_custom_preview_css()
@@ -1138,24 +1011,22 @@ class MarkdownEditor(QMainWindow):
 
         lines = text.split('\n')
         formatted_lines = []
-        prev_was_heading = False
         prev_was_empty = False
 
         for i, line in enumerate(lines):
             stripped = line.strip()
 
-
+            # Add blank line before heading if not already present
             if stripped.startswith('#') and i > 0 and not prev_was_empty:
                 formatted_lines.append('')
 
-
+            # Ensure space after heading marker
             if stripped.startswith('#'):
                 match = re.match(r'^(#{1,6})(\S)', stripped)
                 if match:
                     level = match.group(1)
                     rest = stripped[len(level):]
                     formatted_lines.append(f"{level} {rest}")
-                    prev_was_heading = True
                     prev_was_empty = False
                     continue
 
@@ -1166,7 +1037,6 @@ class MarkdownEditor(QMainWindow):
                 marker = match.group(2)
                 content = match.group(3).strip()
                 formatted_lines.append(f"{indent}{marker} {content}")
-                prev_was_heading = False
                 prev_was_empty = False
                 continue
 
@@ -1177,7 +1047,6 @@ class MarkdownEditor(QMainWindow):
                 marker = match.group(2)
                 content = match.group(3).strip()
                 formatted_lines.append(f"{indent}{marker} {content}")
-                prev_was_heading = False
                 prev_was_empty = False
                 continue
 
@@ -1190,7 +1059,6 @@ class MarkdownEditor(QMainWindow):
             else:
                 formatted_lines.append(line)
                 prev_was_empty = False
-                prev_was_heading = False
 
 
         while formatted_lines and not formatted_lines[-1]:
@@ -1216,6 +1084,20 @@ class MarkdownEditor(QMainWindow):
         if not file_path:
             return
         try:
+            # Guard against oversized files before reading into memory
+            import os as _os
+            max_bytes = 10 * 1024 * 1024  # 10 MB
+            try:
+                size = _os.path.getsize(file_path)
+                if size > max_bytes:
+                    QMessageBox.warning(
+                        self, "File Too Large",
+                        f"Cannot open file: it exceeds the 10 MB limit "
+                        f"({size / (1024*1024):.1f} MB)."
+                    )
+                    return
+            except OSError:
+                pass
             with open(file_path, 'r', encoding='utf-8') as file:
                 content = file.read()
             self.editor.setPlainText(content)
@@ -1269,6 +1151,13 @@ class MarkdownEditor(QMainWindow):
             self, "Select Preview CSS", "", "CSS Files (*.css);;All Files (*)"
         )
         if not file_path:
+            return
+        # Enforce .css extension to prevent loading arbitrary files
+        if not file_path.lower().endswith('.css'):
+            QMessageBox.warning(
+                self, "Invalid File",
+                "Please select a valid CSS file (.css extension required)."
+            )
             return
         self._custom_preview_css_path = file_path
         self._custom_preview_css_cache = ""
@@ -1409,30 +1298,77 @@ class MarkdownEditor(QMainWindow):
             except Exception as e:
                 QMessageBox.critical(self, "Export Error", f"Could not export file: {str(e)}")
 
+    def _parse_markdown_lines(self, text):
+        """Shared markdown block parser — yields (block_type, content) tuples.
+
+        block_type values: 'h1'..'h6', 'code_block', 'hr', 'list_bullet',
+        'list_ordered', 'empty', 'paragraph'.
+        For 'code_block', content is a list of strings; for all others a string.
+        """
+        lines = text.split('\n')
+        in_code_block = False
+        code_lines = []
+        for line in lines:
+            if line.strip().startswith('```'):
+                if in_code_block:
+                    yield ('code_block', code_lines)
+                    code_lines = []
+                    in_code_block = False
+                else:
+                    in_code_block = True
+                continue
+            if in_code_block:
+                code_lines.append(line)
+                continue
+            heading_match = re.match(r'^(#{1,6})\s+(.*)', line)
+            if heading_match:
+                level = len(heading_match.group(1))
+                yield (f'h{level}', heading_match.group(2))
+                continue
+            if line.strip() in ('---', '***', '___'):
+                yield ('hr', '')
+                continue
+            if re.match(r'^\s*[-*+]\s+', line):
+                yield ('list_bullet', line.strip()[2:].strip())
+                continue
+            if re.match(r'^\s*\d+\.\s+', line):
+                m = re.match(r'^\s*\d+\.\s+(.*)', line)
+                yield ('list_ordered', m.group(1) if m else line)
+                continue
+            if not line.strip():
+                yield ('empty', '')
+                continue
+            yield ('paragraph', line)
+        if in_code_block and code_lines:
+            yield ('code_block', code_lines)
+
+    @staticmethod
+    def _strip_inline_md(text):
+        """Remove inline markdown syntax from a line of text."""
+        text = re.sub(r'\*\*(.*?)\*\*', r'\1', text)
+        text = re.sub(r'__(.*?)__', r'\1', text)
+        text = re.sub(r'\*(.*?)\*', r'\1', text)
+        text = re.sub(r'_(.*?)_', r'\1', text)
+        text = re.sub(r'`(.*?)`', r'\1', text)
+        text = re.sub(r'\[([^\]]+)\]\([^\)]+\)', r'\1', text)
+        text = re.sub(r'!\[([^\]]*)\]\([^\)]+\)', r'[\1]', text)
+        return text
+
     def export_as_markdown(self, file_path):
 
         with open(file_path, 'w', encoding='utf-8') as file:
             file.write(self.editor.toPlainText())
 
     def export_as_text(self, file_path):
-
         markdown_text = self.editor.toPlainText()
-
-        import re
         text = markdown_text
-
         text = re.sub(r'^#{1,6}\s+', '', text, flags=re.MULTILINE)
-
         text = re.sub(r'\*\*(.*?)\*\*', r'\1', text)
         text = re.sub(r'\*(.*?)\*', r'\1', text)
-
         text = re.sub(r'```.*?\n(.*?)\n```', r'\1', text, flags=re.DOTALL)
         text = re.sub(r'`(.*?)`', r'\1', text)
-
         text = re.sub(r'\[([^\]]+)\]\([^\)]+\)', r'\1', text)
-
         text = re.sub(r'!\[([^\]]*)\]\([^\)]+\)', r'[\1]', text)
-
         with open(file_path, 'w', encoding='utf-8') as file:
             file.write(text)
 
@@ -1557,82 +1493,30 @@ class MarkdownEditor(QMainWindow):
             file.write(styled_html)
 
     def export_as_docx(self, file_path):
-
         if not DOCX_AVAILABLE:
             raise ImportError("python-docx library is not available")
-
         markdown_text = self.editor.toPlainText()
-        html = markdown.markdown(markdown_text, extensions=['codehilite', 'tables', 'toc'])
-
-
         doc = Document()
-
-
         doc.add_heading('Exported Markdown Document', 0)
-
-
-        lines = markdown_text.split('\n')
-        in_code_block = False
-        code_content = []
-
-        for line in lines:
-            if line.strip().startswith('```'):
-                if in_code_block:
-
-                    if code_content:
-                        paragraph = doc.add_paragraph()
-                        run = paragraph.add_run('\n'.join(code_content))
-                        run.font.name = 'Courier New'
-                        code_content = []
-                    in_code_block = False
-                else:
-
-                    in_code_block = True
-                continue
-
-            if in_code_block:
-                code_content.append(line)
-                continue
-
-
-            if line.startswith('# '):
-                doc.add_heading(line[2:], level=1)
-            elif line.startswith('## '):
-                doc.add_heading(line[3:], level=2)
-            elif line.startswith('### '):
-                doc.add_heading(line[4:], level=3)
-            elif line.startswith('#### '):
-                doc.add_heading(line[5:], level=4)
-            elif line.startswith('##### '):
-                doc.add_heading(line[6:], level=5)
-            elif line.startswith('###### '):
-                doc.add_heading(line[7:], level=6)
-
-            elif line.strip() == '---' or line.strip() == '***':
+        for btype, bdata in self._parse_markdown_lines(markdown_text):
+            if btype.startswith('h'):
+                level = int(btype[1:])
+                doc.add_heading(self._strip_inline_md(bdata), level=level)
+            elif btype == 'code_block':
+                if bdata:
+                    paragraph = doc.add_paragraph()
+                    run = paragraph.add_run('\n'.join(bdata))
+                    run.font.name = 'Courier New'
+            elif btype == 'hr':
                 doc.add_paragraph('_' * 50)
-
-            elif line.strip().startswith(('- ', '* ', '+ ')):
-                p = doc.add_paragraph(line.strip()[2:], style='List Bullet')
-            elif line.strip() and line.strip()[0].isdigit() and line.strip().find('.') == 1:
-                p = doc.add_paragraph(line.strip()[3:], style='List Number')
-
-            elif not line.strip():
+            elif btype == 'list_bullet':
+                doc.add_paragraph(self._strip_inline_md(bdata), style='List Bullet')
+            elif btype == 'list_ordered':
+                doc.add_paragraph(self._strip_inline_md(bdata), style='List Number')
+            elif btype == 'empty':
                 doc.add_paragraph()
-
-            elif line.strip():
-
-                processed_line = line
-
-                processed_line = re.sub(r'\*\*(.*?)\*\*', r'\1', processed_line)
-
-                processed_line = re.sub(r'\*(.*?)\*', r'\1', processed_line)
-
-                processed_line = re.sub(r'`(.*?)`', r'\1', processed_line)
-
-                processed_line = re.sub(r'\[([^\]]+)\]\([^\)]+\)', r'\1', processed_line)
-
-                doc.add_paragraph(processed_line)
-
+            elif btype == 'paragraph':
+                doc.add_paragraph(self._strip_inline_md(bdata))
         doc.save(file_path)
 
     def export_as_pdf(self, file_path):
@@ -1834,94 +1718,46 @@ class MarkdownEditor(QMainWindow):
             raise ImportError("Neither weasyprint nor reportlab is available")
 
     def export_as_rtf(self, file_path):
-
         markdown_text = self.editor.toPlainText()
-        html = markdown.markdown(markdown_text, extensions=['codehilite', 'tables', 'toc'])
-
-
         rtf_content = r"{\rtf1\ansi\deff0"
         rtf_content += r"{\fonttbl{\f0 Times New Roman;}}"
         rtf_content += r"{\colortbl;\red0\green0\blue0;}"
         rtf_content += r"\fs24"
 
+        def _rtf_escape(s):
+            return s.replace('\\', '\\\\').replace('{', '\\{').replace('}', '\\}')
 
-        lines = markdown_text.split('\n')
-        in_code_block = False
-        code_content = []
-
-        for line in lines:
-            if line.strip().startswith('```'):
-                if in_code_block:
-
-                    if code_content:
-                        rtf_content += r"{\pard\plain\f0\fs20 "
-                        for code_line in code_content:
-                            rtf_content += code_line.replace('\\', '\\\\').replace('{', '\\{').replace('}', '\\}') + r"\line "
-                        rtf_content += r"}\par"
-                        code_content = []
-                    in_code_block = False
-                else:
-
-                    in_code_block = True
-                continue
-
-            if in_code_block:
-                code_content.append(line)
-                continue
-
-
-            if line.startswith('# '):
-                rtf_content += r"{\pard\plain\f0\fs36\b " + line[2:].replace('\\', '\\\\').replace('{', '\\{').replace('}', '\\}') + r"}\par"
-            elif line.startswith('## '):
-                rtf_content += r"{\pard\plain\f0\fs32\b " + line[3:].replace('\\', '\\\\').replace('{', '\\{').replace('}', '\\}') + r"}\par"
-            elif line.startswith('### '):
-                rtf_content += r"{\pard\plain\f0\fs28\b " + line[4:].replace('\\', '\\\\').replace('{', '\\{').replace('}', '\\}') + r"}\par"
-            elif line.startswith('#### '):
-                rtf_content += r"{\pard\plain\f0\fs26\b " + line[5:].replace('\\', '\\\\').replace('{', '\\{').replace('}', '\\}') + r"}\par"
-            elif line.startswith('##### '):
-                rtf_content += r"{\pard\plain\f0\fs24\b " + line[6:].replace('\\', '\\\\').replace('{', '\\{').replace('}', '\\}') + r"}\par"
-            elif line.startswith('###### '):
-                rtf_content += r"{\pard\plain\f0\fs22\b " + line[7:].replace('\\', '\\\\').replace('{', '\\{').replace('}', '\\}') + r"}\par"
-
-            elif line.strip() == '---' or line.strip() == '***':
+        for btype, bdata in self._parse_markdown_lines(markdown_text):
+            if btype.startswith('h'):
+                level = int(btype[1:])
+                size = max(22, 36 - (level - 1) * 2)
+                rtf_content += r"{\pard\plain\f0\fs" + str(size) + r"\b " + _rtf_escape(bdata) + r"}\par"
+            elif btype == 'code_block':
+                rtf_content += r"{\pard\plain\f0\fs20 "
+                for code_line in bdata:
+                    rtf_content += _rtf_escape(code_line) + r"\line "
+                rtf_content += r"}\par"
+            elif btype == 'hr':
                 rtf_content += r"{\pard\plain\f0\fs24 " + "_" * 50 + r"}\par"
-
-            elif line.strip().startswith(('- ', '* ', '+ ')):
-                rtf_content += r"{\pard\plain\f0\fs24 \bullet " + line.strip()[2:].replace('\\', '\\\\').replace('{', '\\{').replace('}', '\\}') + r"}\par"
-            elif line.strip() and line.strip()[0].isdigit() and line.strip().find('.') == 1:
-                rtf_content += r"{\pard\plain\f0\fs24 " + line.strip().replace('\\', '\\\\').replace('{', '\\{').replace('}', '\\}') + r"}\par"
-
-            elif not line.strip():
+            elif btype == 'list_bullet':
+                rtf_content += r"{\pard\plain\f0\fs24 \bullet " + _rtf_escape(bdata) + r"}\par"
+            elif btype == 'list_ordered':
+                rtf_content += r"{\pard\plain\f0\fs24 " + _rtf_escape(bdata) + r"}\par"
+            elif btype == 'empty':
                 rtf_content += r"\par"
-
-            elif line.strip():
-
-                processed_line = line
-
-                processed_line = re.sub(r'\*\*(.*?)\*\*', r'\b \1\b0', processed_line)
-
-                processed_line = re.sub(r'\*(.*?)\*', r'\i \1\i0', processed_line)
-
-                processed_line = re.sub(r'`(.*?)`', r'\f1\fs18 \1\f0\fs24', processed_line)
-
-                processed_line = re.sub(r'\[([^\]]+)\]\([^\)]+\)', r'\1', processed_line)
-
-                rtf_content += r"{\pard\plain\f0\fs24 " + processed_line.replace('\\', '\\\\').replace('{', '\\{').replace('}', '\\}') + r"}\par"
+            elif btype == 'paragraph':
+                processed = self._strip_inline_md(bdata)
+                rtf_content += r"{\pard\plain\f0\fs24 " + _rtf_escape(processed) + r"}\par"
 
         rtf_content += "}"
-
         with open(file_path, 'w', encoding='utf-8') as file:
             file.write(rtf_content)
 
     def export_as_odt(self, file_path):
-
-
         import zipfile
         import xml.etree.ElementTree as ET
 
         markdown_text = self.editor.toPlainText()
-        html = markdown.markdown(markdown_text, extensions=['codehilite', 'tables', 'toc'])
-
 
         content = ET.Element("office:document-content")
         content.set("xmlns:office", "urn:oasis:names:tc:opendocument:xmlns:office:1.0")
@@ -1930,103 +1766,41 @@ class MarkdownEditor(QMainWindow):
         content.set("office:version", "1.0")
 
         body = ET.SubElement(content, "office:body")
-        text = ET.SubElement(body, "office:text")
+        text_el = ET.SubElement(body, "office:text")
 
-
-        lines = markdown_text.split('\n')
-        in_code_block = False
-        code_content = []
-
-        for line in lines:
-            if line.strip().startswith('```'):
-                if in_code_block:
-
-                    if code_content:
-                        for code_line in code_content:
-                            p = ET.SubElement(text, "text:p")
-                            p.text = code_line
-                        code_content = []
-                    in_code_block = False
-                else:
-
-                    in_code_block = True
-                continue
-
-            if in_code_block:
-                code_content.append(line)
-                continue
-
-
-            if line.startswith('# '):
-                h = ET.SubElement(text, "text:h", attrib={"text:outline-level": "1"})
-                h.text = line[2:]
-            elif line.startswith('## '):
-                h = ET.SubElement(text, "text:h", attrib={"text:outline-level": "2"})
-                h.text = line[3:]
-            elif line.startswith('### '):
-                h = ET.SubElement(text, "text:h", attrib={"text:outline-level": "3"})
-                h.text = line[4:]
-            elif line.startswith('#### '):
-                h = ET.SubElement(text, "text:h", attrib={"text:outline-level": "4"})
-                h.text = line[5:]
-            elif line.startswith('##### '):
-                h = ET.SubElement(text, "text:h", attrib={"text:outline-level": "5"})
-                h.text = line[6:]
-            elif line.startswith('###### '):
-                h = ET.SubElement(text, "text:h", attrib={"text:outline-level": "6"})
-                h.text = line[7:]
-
-            elif line.strip() == '---' or line.strip() == '***':
-                p = ET.SubElement(text, "text:p")
+        for btype, bdata in self._parse_markdown_lines(markdown_text):
+            if btype.startswith('h'):
+                level = btype[1:]
+                h = ET.SubElement(text_el, "text:h", attrib={"text:outline-level": level})
+                h.text = self._strip_inline_md(bdata)
+            elif btype == 'code_block':
+                for code_line in bdata:
+                    p = ET.SubElement(text_el, "text:p")
+                    p.text = code_line
+            elif btype == 'hr':
+                p = ET.SubElement(text_el, "text:p")
                 p.text = "_" * 50
-
-            elif line.strip().startswith(('- ', '* ', '+ ')):
-                p = ET.SubElement(text, "text:p")
-                p.text = "• " + line.strip()[2:]
-            elif line.strip() and line.strip()[0].isdigit() and line.strip().find('.') == 1:
-                p = ET.SubElement(text, "text:p")
-                p.text = line.strip()
-
-            elif not line.strip():
-                p = ET.SubElement(text, "text:p")
-                p.text = ""
-
-            elif line.strip():
-
-                processed_line = line
-
-                processed_line = re.sub(r'\*\*(.*?)\*\*', r'\1', processed_line)
-
-                processed_line = re.sub(r'\*(.*?)\*', r'\1', processed_line)
-
-                processed_line = re.sub(r'`(.*?)`', r'\1', processed_line)
-
-                processed_line = re.sub(r'\[([^\]]+)\]\([^\)]+\)', r'\1', processed_line)
-
-                p = ET.SubElement(text, "text:p")
-                p.text = processed_line
-
+            elif btype in ('list_bullet', 'list_ordered'):
+                p = ET.SubElement(text_el, "text:p")
+                p.text = ("\u2022 " if btype == 'list_bullet' else "") + self._strip_inline_md(bdata)
+            elif btype == 'empty':
+                ET.SubElement(text_el, "text:p")
+            elif btype == 'paragraph':
+                p = ET.SubElement(text_el, "text:p")
+                p.text = self._strip_inline_md(bdata)
 
         with zipfile.ZipFile(file_path, 'w', zipfile.ZIP_DEFLATED) as odt:
-
             odt.writestr('mimetype', 'application/vnd.oasis.opendocument.text')
-
-
             content_str = ET.tostring(content, encoding='unicode', xml_declaration=True)
             odt.writestr('content.xml', content_str)
-
-
             manifest = ET.Element("manifest:manifest")
             manifest.set("xmlns:manifest", "urn:oasis:names:tc:opendocument:xmlns:manifest:1.0")
-
             file_entry1 = ET.SubElement(manifest, "manifest:file-entry")
             file_entry1.set("manifest:full-path", "/")
             file_entry1.set("manifest:media-type", "application/vnd.oasis.opendocument.text")
-
             file_entry2 = ET.SubElement(manifest, "manifest:file-entry")
             file_entry2.set("manifest:full-path", "content.xml")
             file_entry2.set("manifest:media-type", "text/xml")
-
             manifest_str = ET.tostring(manifest, encoding='unicode', xml_declaration=True)
             odt.writestr('META-INF/manifest.xml', manifest_str)
 
