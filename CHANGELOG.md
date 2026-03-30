@@ -9,13 +9,16 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## [Unreleased]
 
+_No unreleased changes yet._
+
 ---
 
 ## [1.0.0] — 2026-03-30
 
 ### Added
 
-- Initial release of Smart Markdown Editor.
+**User-facing features**
+
 - Live markdown preview via `QWebEngineView`.
 - Syntax highlighting in the editor (`MarkdownSyntaxHighlighter`).
 - Smart Assistant panel with document statistics and quality analysis.
@@ -24,6 +27,9 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 - Recent files menu with auto-cleanup of missing paths.
 - Auto-save (configurable interval, defaults to 30 s).
 - Custom preview CSS support.
+
+**Internal additions**
+
 - `src/ui/` package with four dedicated modules:
   - `themes.py` — `ThemeManager` with static methods for editor, panel, dialog
     and preview-HTML stylesheets; removes all raw CSS from business-logic code.
@@ -92,3 +98,8 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
   - `format_markdown()`: removed stale `prev_was_heading` variable assignments
     that were never read.
   - Added shared `_parse_markdown_lines()` and `_strip_inline_md()` helper methods.
+
+---
+
+[Unreleased]: https://github.com/MichailSemoglou/smart-markdown-editor/compare/v1.0.0...HEAD
+[1.0.0]: https://github.com/MichailSemoglou/smart-markdown-editor/releases/tag/v1.0.0
