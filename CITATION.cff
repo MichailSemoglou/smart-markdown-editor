@@ -1,0 +1,55 @@
+cff-version: 1.2.0
+message: >-
+  If you use this software in your research, please cite it using
+  the metadata in this file.
+type: software
+title: Smart Markdown Editor
+abstract: >-
+  A cross-platform desktop Markdown editor with real-time HTML preview and an
+  integrated Smart Assistant for document quality analysis. Provides
+  readability scoring, heading-hierarchy validation, issue detection, and
+  multi-format export (Markdown, HTML, DOCX, PDF, RTF, ODT, plain text) —
+  entirely offline, with no cloud dependency. Designed for researchers,
+  digital humanities scholars, and technical writers who author in plain-text
+  environments.
+authors:
+  - family-names: Semoglou
+    given-names: Michail
+    orcid: https://orcid.org/0009-0003-3268-5657
+version: 1.0.0
+date-released: "2026-03-30"
+license: MIT
+repository-code: https://github.com/MichailSemoglou/smart-markdown-editor
+url: https://github.com/MichailSemoglou/smart-markdown-editor
+doi: 10.5281/zenodo.PLACEHOLDER
+keywords:
+  - markdown
+  - editor
+  - digital-humanities
+  - plain-text-scholarship
+  - document-analysis
+  - readability
+  - academic-writing
+  - pyside6
+  - scholarly-communication
+  - research-software
+references:
+  - type: book
+    title: "Plain Text: The Poetics of Computation"
+    authors:
+      - family-names: Tenen
+        given-names: Dennis
+    year: 2017
+    publisher:
+      name: Stanford University Press
+  - type: article
+    title: "A new readability yardstick"
+    authors:
+      - family-names: Flesch
+        given-names: Rudolf
+    year: 1948
+    journal: Journal of Applied Psychology
+    volume: 32
+    issue: 3
+    pages: 221--233
+    doi: 10.1037/h0057532

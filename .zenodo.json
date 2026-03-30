@@ -1,0 +1,40 @@
+{
+  "title": "Smart Markdown Editor",
+  "description": "A cross-platform desktop Markdown editor with real-time HTML preview and an integrated Smart Assistant for document quality analysis. Provides readability scoring, heading-hierarchy validation, issue detection, and multi-format export (Markdown, HTML, DOCX, PDF, RTF, ODT, plain text) — entirely offline, with no cloud dependency. Designed for researchers, digital humanities scholars, and technical writers who author in plain-text environments.",
+  "version": "1.0.0",
+  "upload_type": "software",
+  "access_right": "open",
+  "license": "MIT",
+  "publication_date": "2026-03-30",
+  "creators": [
+    {
+      "name": "Semoglou, Michail",
+      "orcid": "0009-0003-3268-5657"
+    }
+  ],
+  "keywords": [
+    "markdown",
+    "editor",
+    "digital humanities",
+    "plain-text scholarship",
+    "document analysis",
+    "readability",
+    "academic writing",
+    "PySide6",
+    "scholarly communication",
+    "research software"
+  ],
+  "related_identifiers": [
+    {
+      "identifier": "https://github.com/MichailSemoglou/smart-markdown-editor",
+      "relation": "isSupplementTo",
+      "scheme": "url"
+    }
+  ],
+  "language": "eng",
+  "communities": [
+    {
+      "identifier": "zenodo"
+    }
+  ]
+}
