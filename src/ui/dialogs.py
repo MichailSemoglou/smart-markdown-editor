@@ -18,13 +18,14 @@ from PySide6.QtWidgets import (
     QPushButton,
     QTextEdit,
     QVBoxLayout,
+    QWidget,
 )
 
 
 class FindReplaceDialog(QDialog):
     """Non-modal Find / Replace dialog bound to a specific QTextEdit."""
 
-    def __init__(self, editor: QTextEdit, parent=None) -> None:
+    def __init__(self, editor: QTextEdit, parent: QWidget | None = None) -> None:
         super().__init__(parent)
         self._editor = editor
         self.setWindowTitle("Find / Replace")

@@ -13,8 +13,6 @@ Example:
 from __future__ import annotations
 
 import logging
-from typing import List, Tuple
-
 from PySide6.QtGui import (
     QSyntaxHighlighter,
     QTextCharFormat,
@@ -58,7 +56,7 @@ class MarkdownSyntaxHighlighter(QSyntaxHighlighter):
         """
         super().__init__(document)
         self._dark_mode = bool(dark_mode)
-        self._rule_formats: List[Tuple[QRegularExpression, QTextCharFormat]] = []
+        self._rule_formats: list[tuple[QRegularExpression, QTextCharFormat]] = []
         self._fence_re = QRegularExpression(r"^\s{0,3}(```|~~~)")
         self._codeblock_format = QTextCharFormat()
         self._build_formats()
@@ -79,7 +77,7 @@ class MarkdownSyntaxHighlighter(QSyntaxHighlighter):
         self.rehighlight()
         logger.debug(f"Dark mode changed to {dark_mode}")
     
-    def _get_theme_colors(self) -> Tuple[QColor, QColor, QColor, QColor, QColor, QColor, QColor]:
+    def _get_theme_colors(self) -> tuple[QColor, QColor, QColor, QColor, QColor, QColor, QColor]:
         """Get color values based on current theme.
         
         Returns:

@@ -24,6 +24,7 @@ from PySide6.QtWebEngineWidgets import QWebEngineView
 from PySide6.QtWidgets import (
     QFileDialog,
     QMainWindow,
+    QMenu,
     QMessageBox,
     QSplitter,
     QTextEdit,
@@ -216,7 +217,7 @@ class MainWindow(QMainWindow):
         clear_css_action = view_menu.addAction("Clear Preview CSS")
         clear_css_action.triggered.connect(self.clear_preview_css)
 
-    def _populate_export_menu(self, menu) -> None:
+    def _populate_export_menu(self, menu: QMenu) -> None:
         """Add one action per available exporter to *menu*."""
         for exporter_cls in get_available_exporters():
             exporter = exporter_cls()

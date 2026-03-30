@@ -17,13 +17,13 @@ import logging
 import os
 import re
 from pathlib import Path
-from typing import Union
+
+from src.config import MAX_FILE_SIZE_BYTES
 
 # Configure module logger
 logger = logging.getLogger(__name__)
 
 # Constants
-MAX_FILE_SIZE_BYTES = 10 * 1024 * 1024  # 10MB
 ALLOWED_EXTENSIONS = {'.md', '.txt', '.markdown'}
 
 
@@ -47,7 +47,7 @@ class ValidationError(Exception):
     pass
 
 
-def validate_file_path(file_path: Union[str, Path]) -> Path:
+def validate_file_path(file_path: str | Path) -> Path:
     """Validate a file path for security and accessibility.
     
     Args:
@@ -94,7 +94,7 @@ def validate_file_path(file_path: Union[str, Path]) -> Path:
     return path
 
 
-def validate_file_size(file_path: Union[str, Path], max_size: int = MAX_FILE_SIZE_BYTES) -> None:
+def validate_file_size(file_path: str | Path, max_size: int = MAX_FILE_SIZE_BYTES) -> None:
     """Validate file size is within limits.
     
     Args:
@@ -167,7 +167,7 @@ def sanitize_filename(filename: str) -> str:
     return filename
 
 
-def read_file_content(file_path: Union[str, Path], encoding: str = 'utf-8') -> str:
+def read_file_content(file_path: str | Path, encoding: str = 'utf-8') -> str:
     """Read file content with validation.
     
     Args:
@@ -197,7 +197,7 @@ def read_file_content(file_path: Union[str, Path], encoding: str = 'utf-8') -> s
 
 
 def write_file_content(
-    file_path: Union[str, Path], 
+    file_path: str | Path, 
     content: str, 
     encoding: str = 'utf-8'
 ) -> None:
@@ -224,7 +224,7 @@ def write_file_content(
         raise FileAccessError(f"Cannot write file: {file_path}")
 
 
-def get_unique_filename(directory: Union[str, Path], base_name: str, extension: str) -> Path:
+def get_unique_filename(directory: str | Path, base_name: str, extension: str) -> Path:
     """Generate a unique filename in a directory.
     
     Args:

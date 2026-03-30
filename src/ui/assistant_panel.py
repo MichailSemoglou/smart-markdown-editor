@@ -6,6 +6,8 @@ Displays live document statistics and quality metrics derived from
 
 from __future__ import annotations
 
+from typing import Any
+
 from PySide6.QtGui import QFont
 from PySide6.QtWidgets import (
     QGroupBox,
@@ -15,11 +17,13 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
+from src.core.analyzer import get_readability_color, get_structure_color
+
 
 class AssistantPanel(QWidget):
     """Side-panel that shows document statistics, structure and quality info."""
 
-    def __init__(self, parent=None) -> None:
+    def __init__(self, parent: QWidget | None = None) -> None:
         super().__init__(parent)
         self._build_ui()
 
@@ -27,7 +31,7 @@ class AssistantPanel(QWidget):
     # Public API
     # ------------------------------------------------------------------
 
-    def update_metrics(self, metrics: dict) -> None:
+    def update_metrics(self, metrics: dict[str, Any]) -> None:
         """Refresh every label from a metrics dict produced by MarkdownAnalyzer."""
         # Statistics
         self._stats_labels["words"].setText(f"Words: {metrics['word_count']}")
@@ -63,22 +67,14 @@ class AssistantPanel(QWidget):
 
         # Quality
         readability = metrics["readability_score"]
-        r_color = (
-            "green" if readability >= 80 else "orange" if readability >= 60 else "red"
-        )
+        r_color = get_readability_color(readability)
         self._quality_labels["readability"].setText(f"Readability: {readability}/100")
         self._quality_labels["readability"].setStyleSheet(
             f"color: {r_color}; font-weight: bold;"
         )
 
         structure_quality = metrics["structure_quality"]
-        s_color = (
-            "green"
-            if structure_quality == "Excellent"
-            else "orange"
-            if structure_quality == "Good"
-            else "red"
-        )
+        s_color = get_structure_color(structure_quality)
         self._quality_labels["structure_quality"].setText(
             f"Structure: {structure_quality}"
         )

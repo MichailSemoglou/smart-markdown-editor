@@ -106,10 +106,10 @@ _EXPORTERS: dict[str, type[BaseExporter]] = {}
 
 def register_exporter(exporter: type[BaseExporter]) -> None:
     """Register an exporter in the global registry.
-    
+
     Args:
-            exporter: The exporter instance to register.
-        """
+        exporter: The exporter class to register.
+    """
     global _EXPORTERS
     _EXPORTERS[exporter.extension] = exporter
     logger.info(f"Registered exporter: {exporter.name} ({exporter.extension})")
@@ -117,13 +117,13 @@ def register_exporter(exporter: type[BaseExporter]) -> None:
 
 def get_exporter(extension: str) -> Optional[type[BaseExporter]]:
     """Get an exporter by file extension.
-    
+
     Args:
-            extension: The file extension (without the dot).
-        
+        extension: The file extension (without the dot).
+
     Returns:
-            BaseExporter or None if not found.
-        """
+        Exporter class, or None if not found.
+    """
     return _EXPORTERS.get(extension)
 
 

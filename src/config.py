@@ -12,7 +12,7 @@ from typing import Final
 # =============================================================================
 
 APP_NAME: Final[str] = "Smart Markdown Editor"
-APP_VERSION: Final[str] = "2.0.0"
+APP_VERSION: Final[str] = "1.0.0"
 APP_ORGANIZATION: Final[str] = "smart-markdown-editor"
 
 # =============================================================================
