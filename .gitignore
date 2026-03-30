@@ -67,3 +67,6 @@ dmypy.json
 *.pyc
 *.pyo
 *.pyd
+
+# Local files
+ANALYSIS_REPORT.md

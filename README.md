@@ -15,7 +15,7 @@ A cross-platform desktop Markdown editor with real-time HTML preview and an inte
 
 Scholars who write in Markdown — the lingua franca of digital humanities project documentation, digital editions, and computational humanities research — currently have no tool that combines the structural feedback familiar from word-processor track-changes workflows with the plain-text, version-control-friendly format that modern DH and open-science practice requires.
 
-Existing Markdown editors either provide visual previewing with no quality analysis (Typora, Obsidian), operate headlessly with no authoring context (proselint, vale), or require cloud connectivity that creates privacy and data-sovereignty concerns (Grammarly, LanguageTool). Smart Markdown Editor fills this gap: real-time structural quality feedback, inside a Markdown-native, fully offline, open-source environment — designed by a practitioner in design and digital humanities from within the community it serves.
+Existing Markdown editors either provide visual previewing with no quality analysis (Typora, Obsidian), operate headlessly with no authoring context (proselint, vale), or require cloud connectivity that creates privacy and data-sovereignty concerns (Grammarly, LanguageTool). Smart Markdown Editor fills this gap: real-time structural quality feedback, inside a Markdown-native, fully offline, open-source environment.
 
 100% local — **your documents never touch a server.**
 
