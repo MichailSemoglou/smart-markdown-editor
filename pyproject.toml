@@ -1,0 +1,132 @@
+[build-system]
+requires = ["setuptools>=61", "wheel"]
+build-backend = "setuptools.build_meta"
+
+# ---------------------------------------------------------------------------
+# Project metadata  (PEP 621)
+# ---------------------------------------------------------------------------
+
+[project]
+name = "smart-markdown-editor"
+version = "1.0.0"
+description = "A cross-platform desktop Markdown editor with real-time preview and an integrated Smart Assistant for document quality analysis."
+readme = "README.md"
+license = { file = "LICENSE" }
+authors = [
+    { name = "Michail Semoglou", email = "m.semoglou@tongji.edu.cn" }
+]
+keywords = [
+    "markdown",
+    "editor",
+    "readability",
+    "document-analysis",
+    "academic-writing",
+    "pyside6",
+    "digital-humanities",
+    "plain-text-scholarship",
+    "scholarly-communication",
+    "research-software",
+]
+classifiers = [
+    "Development Status :: 5 - Production/Stable",
+    "Intended Audience :: Science/Research",
+    "Intended Audience :: Education",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Text Editors",
+    "Topic :: Text Processing :: Markup",
+    "Topic :: Scientific/Engineering",
+    "Topic :: Office/Business :: Office Suites",
+    "Environment :: X11 Applications :: Qt",
+]
+requires-python = ">=3.9"
+
+# Core dependencies — install cleanly on all platforms with pip alone.
+# weasyprint is optional (requires system-level pango/cairo — see [weasyprint] extra).
+dependencies = [
+    "PySide6>=6.8.0",
+    "markdown>=3.5.1",
+    "pygments>=2.16.0",
+    "python-docx>=0.8.11",
+    "reportlab>=3.6.0",
+    "html2text>=2020.1.16",
+]
+
+[project.optional-dependencies]
+# PDF export via WeasyPrint (requires system-level pango, cairo, gdk-pixbuf).
+# On macOS: brew install pango cairo gdk-pixbuf
+# On Ubuntu/Debian: apt-get install libpango-1.0-0 libcairo2 libgdk-pixbuf2.0-0
+weasyprint = ["weasyprint>=59.0"]
+
+# Install everything including WeasyPrint.
+all = ["smart-markdown-editor[weasyprint]"]
+
+# Development dependencies.
+dev = [
+    "pytest>=7.0",
+    "pytest-qt>=4.0",
+    "ruff>=0.4",
+    "mypy>=1.0",
+]
+
+[project.urls]
+Homepage      = "https://github.com/MichailSemoglou/smart-markdown-editor"
+Repository    = "https://github.com/MichailSemoglou/smart-markdown-editor"
+Documentation = "https://github.com/MichailSemoglou/smart-markdown-editor#readme"
+"Bug Tracker" = "https://github.com/MichailSemoglou/smart-markdown-editor/issues"
+Changelog     = "https://github.com/MichailSemoglou/smart-markdown-editor/blob/main/CHANGELOG.md"
+DOI           = "https://doi.org/10.5281/zenodo.19328281"
+
+# ---------------------------------------------------------------------------
+# Entry points
+# ---------------------------------------------------------------------------
+
+[project.scripts]
+# GUI application — opens the editor window.
+smart-markdown-editor = "src.main:main"
+
+# ---------------------------------------------------------------------------
+# Package discovery
+# ---------------------------------------------------------------------------
+
+[tool.setuptools.packages.find]
+where   = ["."]
+include = ["src*"]
+exclude = ["tests*", "docs*"]
+
+[tool.setuptools.package-data]
+"src" = ["py.typed"]
+
+# ---------------------------------------------------------------------------
+# Ruff (linter)
+# ---------------------------------------------------------------------------
+
+[tool.ruff]
+target-version = "py39"
+line-length    = 100
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "UP"]
+ignore = ["E501"]
+
+# ---------------------------------------------------------------------------
+# Mypy (type checker)
+# ---------------------------------------------------------------------------
+
+[tool.mypy]
+python_version         = "3.9"
+warn_return_any        = true
+warn_unused_configs    = true
+ignore_missing_imports = true
+
+# ---------------------------------------------------------------------------
+# Pytest
+# ---------------------------------------------------------------------------
+
+[tool.pytest.ini_options]
+testpaths    = ["tests", "test_exports.py"]
+python_files = ["test_*.py"]
