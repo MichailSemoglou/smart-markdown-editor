@@ -3,7 +3,8 @@ name: Publish to PyPI
 on:
   push:
     tags:
-      - "v*"
+      - "v*"   # triggers automatically on version tags
+  workflow_dispatch:  # allows manual trigger from GitHub Actions UI
 
 jobs:
   build:
