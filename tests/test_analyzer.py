@@ -9,50 +9,51 @@ This module tests the MarkdownAnalyzer class including:
 """
 
 import unittest
+
 from src.core.analyzer import MarkdownAnalyzer, get_readability_color
 
 
 class TestMarkdownAnalyzer(unittest.TestCase):
     """Test the markdown analyzer functionality."""
-    
+
     def test_empty_document(self):
         """Test with empty document."""
         analyzer = MarkdownAnalyzer("")
         metrics = analyzer.analyze()
-        
+
         self.assertEqual(metrics['word_count'], 0)
         self.assertEqual(metrics['char_count'], 0)
         self.assertEqual(metrics['line_count'], 1)  # Empty document has 1 line
         self.assertEqual(metrics['reading_time'], 1)
-        
+
         # Check structure
         self.assertEqual(
-            metrics['headings'], 
+            metrics['headings'],
             {'h1': 0, 'h2': 0, 'h3': 0, 'h4': 0, 'h5': 0, 'h6': 0}
         )
         self.assertEqual(metrics['links'], 0)
         self.assertEqual(metrics['images'], 0)
         self.assertEqual(metrics['code_blocks'], 0)
-        
+
         # Check quality
         self.assertEqual(metrics['readability_score'], 100)  # Empty gets max score
         self.assertEqual(metrics['structure_quality'], "No structure")
-    
+
     def test_simple_document(self):
         """Test with simple markdown document."""
         analyzer = MarkdownAnalyzer("# Title\n\nParagraph text.")
         metrics = analyzer.analyze()
-        
+
         self.assertEqual(metrics['word_count'], 3)  # Title, Paragraph, text
         self.assertEqual(metrics['char_count'], 24)
         self.assertEqual(metrics['line_count'], 3)
-        
+
         # Check headings
         self.assertEqual(
-            metrics['headings'], 
+            metrics['headings'],
             {'h1': 1, 'h2': 0, 'h3': 0, 'h4': 0, 'h5': 0, 'h6': 0}
         )
-    
+
     def test_word_count_excludes_code_blocks(self):
         """Test that code blocks are excluded from word count."""
         text = """# Title
@@ -65,11 +66,11 @@ def example():
 Paragraph text."""
         analyzer = MarkdownAnalyzer(text)
         metrics = analyzer.analyze()
-        
+
         # Code block should be excluded
         self.assertEqual(metrics['word_count'], 3)  # Title, Paragraph, text
         self.assertEqual(metrics['code_blocks'], 1)
-    
+
     def test_heading_detection(self):
         """Test heading detection."""
         text = """# Heading 1
@@ -80,44 +81,44 @@ Paragraph text."""
 """
         analyzer = MarkdownAnalyzer(text)
         metrics = analyzer.analyze()
-        
+
         self.assertEqual(
-            metrics['headings'], 
+            metrics['headings'],
             {'h1': 1, 'h2': 1, 'h3': 1, 'h4': 0, 'h5': 0, 'h6': 0}
         )
-    
+
     def test_reading_time_estimation(self):
         """Test reading time estimation."""
         # 200 words = 1 minute
         text = " ".join(["word"] * 200)
         analyzer = MarkdownAnalyzer(text)
         metrics = analyzer.analyze()
-        
+
         self.assertEqual(metrics['reading_time'], 1)
-        
+
         # 400 words = 2 minutes
         text = " ".join(["word"] * 400)
         analyzer = MarkdownAnalyzer(text)
         metrics = analyzer.analyze()
-        
+
         self.assertEqual(metrics['reading_time'], 2)
-    
+
     def test_link_detection(self):
         """Test link detection."""
         text = "[Example Link](https://example.com)"
         analyzer = MarkdownAnalyzer(text)
         metrics = analyzer.analyze()
-        
+
         self.assertEqual(metrics['links'], 1)
-    
+
     def test_image_detection(self):
         """Test image detection."""
         text = "![Alt text](image.png)"
         analyzer = MarkdownAnalyzer(text)
         metrics = analyzer.analyze()
-        
+
         self.assertEqual(metrics['images'], 1)
-    
+
     def test_list_detection(self):
         """Test list detection."""
         text = """- Item 1
@@ -126,17 +127,17 @@ Paragraph text."""
 """
         analyzer = MarkdownAnalyzer(text)
         metrics = analyzer.analyze()
-        
+
         self.assertEqual(metrics['lists'], 3)
-    
+
     def test_blockquote_detection(self):
         """Test blockquote detection."""
         text = "> This is a quote"
         analyzer = MarkdownAnalyzer(text)
         metrics = analyzer.analyze()
-        
+
         self.assertEqual(metrics['blockquotes'], 1)
-    
+
     def test_table_detection(self):
         """Test table detection."""
         text = """| Header 1 | Header 2 |
@@ -144,9 +145,9 @@ Paragraph text."""
 | Cell 1  | Cell 2  |"""
         analyzer = MarkdownAnalyzer(text)
         metrics = analyzer.analyze()
-        
+
         self.assertEqual(metrics['tables'], 1)
-    
+
     def test_get_readability_color(self):
         """Test readability color helper function."""
         self.assertEqual(get_readability_color(90), "green")

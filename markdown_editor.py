@@ -3,18 +3,32 @@
 A modern, cross-platform desktop markdown editor built with PySide6 (Qt6 for Python).
 """
 
-import sys
 import os
 import re
-import markdown
-from PySide6.QtWidgets import (QApplication, QMainWindow, QWidget, QVBoxLayout,
-                               QHBoxLayout, QTextEdit, QSplitter, QFileDialog, QMessageBox, QLabel,
-                               QGroupBox, QPushButton, QDialog, QLineEdit, QCheckBox)
-from PySide6.QtCore import Qt, QTimer, QRegularExpression, QSettings
-from PySide6.QtGui import QFont, QColor, QSyntaxHighlighter, QTextCharFormat, QTextDocument
-from PySide6.QtWebEngineWidgets import QWebEngineView
+import sys
 from collections import Counter
 
+import markdown
+from PySide6.QtCore import QRegularExpression, QSettings, Qt, QTimer
+from PySide6.QtGui import QColor, QFont, QSyntaxHighlighter, QTextCharFormat, QTextDocument
+from PySide6.QtWebEngineWidgets import QWebEngineView
+from PySide6.QtWidgets import (
+    QApplication,
+    QCheckBox,
+    QDialog,
+    QFileDialog,
+    QGroupBox,
+    QHBoxLayout,
+    QLabel,
+    QLineEdit,
+    QMainWindow,
+    QMessageBox,
+    QPushButton,
+    QSplitter,
+    QTextEdit,
+    QVBoxLayout,
+    QWidget,
+)
 
 try:
     from docx import Document
@@ -24,8 +38,8 @@ except ImportError:
 
 try:
     from reportlab.lib.pagesizes import letter
-    from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer
     from reportlab.lib.styles import getSampleStyleSheet
+    from reportlab.platypus import Paragraph, SimpleDocTemplate, Spacer
     PDF_AVAILABLE = True
 except ImportError:
     PDF_AVAILABLE = False
@@ -1098,7 +1112,7 @@ class MarkdownEditor(QMainWindow):
                     return
             except OSError:
                 pass
-            with open(file_path, 'r', encoding='utf-8') as file:
+            with open(file_path, encoding='utf-8') as file:
                 content = file.read()
             self.editor.setPlainText(content)
             self.editor.document().setModified(False)
@@ -1188,7 +1202,7 @@ class MarkdownEditor(QMainWindow):
 
         if self._custom_preview_css_cache_mtime != mtime:
             try:
-                with open(path, "r", encoding="utf-8") as f:
+                with open(path, encoding="utf-8") as f:
                     self._custom_preview_css_cache = f.read()
                 self._custom_preview_css_cache_mtime = mtime
             except Exception:
@@ -1754,8 +1768,8 @@ class MarkdownEditor(QMainWindow):
             file.write(rtf_content)
 
     def export_as_odt(self, file_path):
-        import zipfile
         import xml.etree.ElementTree as ET
+        import zipfile
 
         markdown_text = self.editor.toPlainText()
 

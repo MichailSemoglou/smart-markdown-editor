@@ -17,8 +17,6 @@ from __future__ import annotations
 
 import logging
 from abc import ABC, abstractmethod
-from typing import Optional
-
 from pathlib import Path
 
 # Configure module logger
@@ -27,10 +25,10 @@ logger = logging.getLogger(__name__)
 
 class BaseExporter(ABC):
     """Abstract base class for all exporters.
-    
+
     All exporters must inherit from this class and implement the export() method.
     The registry pattern allows for dynamic discovery and registration.
-    
+
     Attributes:
         name: Human-readable name of the exporter.
         extension: File extension (without the dot).
@@ -38,13 +36,13 @@ class BaseExporter(ABC):
         requires_library: Optional library name required for this exporter.
         _available: Whether the required library is available.
     """
-    
+
     name: str
     extension: str
     file_filter: str
-    requires_library: Optional[str] = None
+    requires_library: str | None = None
     _available: bool = True
-    
+
     def __init__(self) -> None:
         """Initialize the exporter and check for required libraries."""
         if self.requires_library:
@@ -53,32 +51,32 @@ class BaseExporter(ABC):
                 logger.warning(
                     f"Exporter '{self.name}' unavailable: {self.requires_library} not installed"
                 )
-    
+
     @property
     def is_available(self) -> bool:
         """Check if this exporter is available.
-        
+
         Returns:
             bool: True if the exporter can be used.
         """
         return self._available
-    
+
     @abstractmethod
     def export(self, content: str, output_path: Path) -> None:
         """Export the markdown content to the specified format.
-        
+
         Args:
             content: The markdown content to export.
             output_path: The path to write the output file.
-        
+
         Raises:
             ExportError: If export fails.
         """
         pass
-    
+
     def _check_library(self) -> bool:
         """Check if the required library is available.
-        
+
         Returns:
             bool: True if the library is available.
         """
@@ -88,10 +86,10 @@ class BaseExporter(ABC):
             return True
         except ImportError:
             return False
-    
+
     def get_install_message(self) -> str:
         """Get a message instructing how to install the required library.
-        
+
         Returns:
             str: Installation message or empty string if no library required.
         """
@@ -115,7 +113,7 @@ def register_exporter(exporter: type[BaseExporter]) -> None:
     logger.info(f"Registered exporter: {exporter.name} ({exporter.extension})")
 
 
-def get_exporter(extension: str) -> Optional[type[BaseExporter]]:
+def get_exporter(extension: str) -> type[BaseExporter] | None:
     """Get an exporter by file extension.
 
     Args:

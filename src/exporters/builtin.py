@@ -11,11 +11,10 @@ avoid repeating the same parsing logic across every exporter.
 from __future__ import annotations
 
 import re
+from collections.abc import Generator
 from pathlib import Path
-from typing import Generator
 
 from src.exporters import BaseExporter, register_exporter
-
 
 # =============================================================================
 # Shared parsing utilities

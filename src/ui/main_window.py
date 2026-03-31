@@ -19,7 +19,7 @@ import re
 from pathlib import Path
 
 import markdown
-from PySide6.QtCore import Qt, QSettings, QTimer
+from PySide6.QtCore import QSettings, Qt, QTimer
 from PySide6.QtWebEngineWidgets import QWebEngineView
 from PySide6.QtWidgets import (
     QFileDialog,
@@ -33,9 +33,9 @@ from PySide6.QtWidgets import (
 )
 
 from src.config import (
+    ANALYSIS_UPDATE_DELAY_MS,
     APP_NAME,
     APP_ORGANIZATION,
-    ANALYSIS_UPDATE_DELAY_MS,
     DEFAULT_AUTOSAVE_INTERVAL_MS,
     MAX_FILE_SIZE_BYTES,
     PREVIEW_UPDATE_DELAY_MS,
@@ -340,7 +340,7 @@ class MainWindow(QMainWindow):
                     return
             except OSError:
                 pass
-            with open(file_path, "r", encoding="utf-8") as fh:
+            with open(file_path, encoding="utf-8") as fh:
                 content = fh.read()
             self.editor.setPlainText(content)
             self.editor.document().setModified(False)
@@ -431,7 +431,7 @@ class MainWindow(QMainWindow):
             return ""
         if self._custom_preview_css_cache_mtime != mtime:
             try:
-                with open(path, "r", encoding="utf-8") as fh:
+                with open(path, encoding="utf-8") as fh:
                     self._custom_preview_css_cache = fh.read()
                 self._custom_preview_css_cache_mtime = mtime
             except Exception:

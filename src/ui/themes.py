@@ -6,7 +6,7 @@ centralised here so the rest of the codebase stays free of raw CSS.
 
 from __future__ import annotations
 
-from src.config import LightTheme, DarkTheme
+from src.config import DarkTheme, LightTheme
 
 
 class ThemeManager:

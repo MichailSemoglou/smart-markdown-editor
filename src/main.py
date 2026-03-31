@@ -6,14 +6,14 @@ Example:
     $ python src/main.py
 """
 
-import sys
 import logging
+import sys
 
 from PySide6.QtWidgets import QApplication
 
-from src.config import APP_NAME, APP_VERSION, APP_ORGANIZATION
-from src.ui.main_window import MainWindow
+from src.config import APP_NAME, APP_ORGANIZATION, APP_VERSION
 from src.exporters.builtin import register_all as register_exporters
+from src.ui.main_window import MainWindow
 
 
 def setup_logging() -> None:

@@ -76,7 +76,7 @@ class LightTheme:
     EDITOR_BORDER: Final[str] = "#ddd"
     SELECTION_BG: Final[str] = "#0078d4"
     SELECTION_FG: Final[str] = "#ffffff"
-    
+
     # Syntax highlighting colors
     HEADING_COLOR: Final[str] = "#0b4f9c"
     MUTED_COLOR: Final[str] = "#6a737d"
@@ -94,7 +94,7 @@ class DarkTheme:
     EDITOR_BORDER: Final[str] = "#30363d"
     SELECTION_BG: Final[str] = "#2f81f7"
     SELECTION_FG: Final[str] = "#ffffff"
-    
+
     # Syntax highlighting colors
     HEADING_COLOR: Final[str] = "#2f81f7"
     MUTED_COLOR: Final[str] = "#8b949e"
