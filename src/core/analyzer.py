@@ -19,12 +19,12 @@ import re
 from collections import Counter
 from typing import Any
 
+import textstat
+
 from src.config import (
     MAX_LINE_LENGTH_WARNING,
-    MAX_PARAGRAPH_LENGTH_ERROR,
-    MAX_PARAGRAPH_LENGTH_WARNING,
-    READABILITY_EXCELLENT,
-    READABILITY_GOOD,
+    READABILITY_GREEN,
+    READABILITY_ORANGE,
     WORDS_PER_MINUTE,
 )
 
@@ -249,37 +249,35 @@ class MarkdownAnalyzer:
         return table_count
 
     def _calculate_readability(self) -> int:
-        """Calculate a simple readability score (0-100).
+        """Calculate the Flesch Reading Ease score (0-100).
 
-        Considers:
-        - Paragraph length (penalizes very long paragraphs)
-        - Heading structure (rewards proper hierarchy)
-        - Presence of headings in longer documents
+        Uses the formally specified Flesch Reading Ease formula (Flesch 1948)
+        via the textstat library. Markdown syntax is stripped before scoring
+        so that structural markers do not distort the prose-level metric.
+        Returns 0 for empty documents.
 
         Returns:
-            int: Readability score from 0 to 100.
+            int: Flesch Reading Ease score clamped to [0, 100].
+                 Higher scores indicate more readable text.
         """
-        score = 100
+        if self._count_words() == 0:
+            return 0
 
-        # Check average paragraph length
-        paragraphs = self.text.split('\n\n')
-        if paragraphs:
-            avg_paragraph_length = sum(len(p.split()) for p in paragraphs) / len(paragraphs)
-            if avg_paragraph_length > MAX_PARAGRAPH_LENGTH_ERROR:
-                score -= 20
-            elif avg_paragraph_length > MAX_PARAGRAPH_LENGTH_WARNING:
-                score -= 10
+        # Strip Markdown syntax to produce plain prose for scoring.
+        clean = RE_CODE_BLOCK.sub(' ', self.text)
+        clean = RE_INLINE_CODE.sub(' ', clean)
+        # Images before links (images start with !)
+        clean = RE_IMAGE.sub(' ', clean)
+        # Links — keep display text, drop URL
+        clean = RE_LINK.sub(r'\1', clean)
+        # Heading markers
+        clean = re.sub(r'^#{1,6}\s+', '', clean, flags=re.MULTILINE)
+        # Bold / italic markers
+        clean = RE_BOLD.sub('', clean)
+        clean = RE_ITALIC.sub('', clean)
 
-        # Check heading structure
-        headings = self._analyze_headings()
-        if headings['h1'] >= 1 and headings['h2'] > 0:
-            score += 10
-
-        # Penalize lack of structure in longer documents
-        if sum(headings.values()) == 0 and self._count_words() > 50:
-            score -= 15
-
-        return max(0, min(100, score))
+        score = textstat.flesch_reading_ease(clean.strip())
+        return max(0, min(100, round(score)))
 
     def _analyze_structure_quality(self) -> str:
         """Determine a coarse structure quality rating.
@@ -355,9 +353,9 @@ def get_readability_color(score: int) -> str:
     Returns:
         str: CSS color string ('green', 'orange', or 'red').
     """
-    if score >= READABILITY_EXCELLENT:
+    if score >= READABILITY_GREEN:
         return "green"
-    elif score >= READABILITY_GOOD:
+    elif score >= READABILITY_ORANGE:
         return "orange"
     else:
         return "red"

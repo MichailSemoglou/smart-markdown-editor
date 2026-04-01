@@ -13,13 +13,14 @@ wires together all sub-modules:
 
 from __future__ import annotations
 
+import html as _html_entities
 import logging
 import os
 import re
 from pathlib import Path
 
 import markdown
-from PySide6.QtCore import QSettings, Qt, QTimer
+from PySide6.QtCore import QSettings, Qt, QTimer, QUrl
 from PySide6.QtWebEngineWidgets import QWebEngineView
 from PySide6.QtWidgets import (
     QFileDialog,
@@ -47,6 +48,23 @@ from src.ui.assistant_panel import AssistantPanel
 from src.ui.dialogs import FindReplaceDialog
 from src.ui.themes import ThemeManager
 
+# ---------------------------------------------------------------------------
+# Mermaid diagram pre/post-processing
+# ---------------------------------------------------------------------------
+
+# Matches a fenced mermaid block in raw Markdown source.
+_RE_MERMAID_FENCE = re.compile(
+    r'^```mermaid[ \t]*\n(.*?)\n```',
+    re.DOTALL | re.MULTILINE,
+)
+# Strips HTML tags, javascript: and data: URIs from diagram text (security).
+_RE_MERMAID_UNSAFE = re.compile(
+    r'<[^>]*>|javascript\s*:|data\s*:',
+    re.DOTALL | re.IGNORECASE,
+)
+# Absolute path to src/resources/ so QWebEngineView can resolve mermaid.min.js.
+_MERMAID_RESOURCES_DIR = Path(__file__).parent.parent / "resources"
+
 try:
     from pygments.formatters import HtmlFormatter
 
@@ -66,9 +84,6 @@ class MainWindow(QMainWindow):
         self.setGeometry(100, 100, 1400, 900)
 
         self._settings = QSettings(APP_ORGANIZATION, APP_NAME)
-        self._dark_mode: bool = bool(
-            self._settings.value("darkMode", False, type=bool)
-        )
         self.current_file: str | None = None
         self._custom_preview_css_path: str = str(
             self._settings.value("previewCssPath", "", type=str)
@@ -76,10 +91,8 @@ class MainWindow(QMainWindow):
         self._custom_preview_css_cache: str = ""
         self._custom_preview_css_cache_mtime: float | None = None
         self._recent_files: list[str] = self._load_recent_files()
-        self._pygments_css_by_theme: dict[str, str | None] = {
-            "light": None,
-            "dark": None,
-        }
+        self._pygments_css: str | None = None
+        self._find_replace_dialog: FindReplaceDialog | None = None
 
         self._build_ui()
         self._build_timers()
@@ -102,7 +115,7 @@ class MainWindow(QMainWindow):
         self.editor.setPlaceholderText("Type your markdown here…")
         self.editor.textChanged.connect(self._on_text_changed)
         self._highlighter = MarkdownSyntaxHighlighter(
-            self.editor.document(), dark_mode=self._dark_mode
+            self.editor.document(), dark_mode=False
         )
 
         # Preview
@@ -204,13 +217,6 @@ class MainWindow(QMainWindow):
         # ---- View ----
         view_menu = menubar.addMenu("View")
 
-        self._dark_mode_action = view_menu.addAction("Dark Mode")
-        self._dark_mode_action.setCheckable(True)
-        self._dark_mode_action.setChecked(self._dark_mode)
-        self._dark_mode_action.triggered.connect(self._toggle_dark_mode)
-
-        view_menu.addSeparator()
-
         preview_css_action = view_menu.addAction("Preview CSS…")
         preview_css_action.triggered.connect(self.choose_preview_css)
 
@@ -231,22 +237,8 @@ class MainWindow(QMainWindow):
     # ==========================================================================
 
     def _apply_theme(self) -> None:
-        self.editor.setStyleSheet(
-            ThemeManager.get_editor_stylesheet(self._dark_mode)
-        )
-        self.assistant_panel.setStyleSheet(
-            ThemeManager.get_panel_stylesheet(self._dark_mode)
-        )
-        if self._highlighter is not None:
-            self._highlighter.set_dark_mode(self._dark_mode)
-        if self._find_replace_dialog is not None:
-            self._find_replace_dialog.apply_theme(self._dark_mode)
-
-    def _toggle_dark_mode(self, checked: bool) -> None:
-        self._dark_mode = bool(checked)
-        self._settings.setValue("darkMode", self._dark_mode)
-        self._apply_theme()
-        self.update_preview()
+        self.editor.setStyleSheet(ThemeManager.get_editor_stylesheet(False))
+        self.assistant_panel.setStyleSheet(ThemeManager.get_panel_stylesheet(False))
 
     # ==========================================================================
     # Preview
@@ -254,28 +246,46 @@ class MainWindow(QMainWindow):
 
     def update_preview(self) -> None:
         markdown_text = self.editor.toPlainText()
+
+        # Extract mermaid fenced blocks before Markdown conversion so the
+        # markdown processor never sees them (it would mangle the content).
+        mermaid_diagrams: list[str] = []
+
+        def _collect_mermaid(m: re.Match) -> str:  # type: ignore[type-arg]
+            safe = _RE_MERMAID_UNSAFE.sub('', m.group(1))
+            idx = len(mermaid_diagrams)
+            mermaid_diagrams.append(safe)
+            return f'MERMAIDBLOCK{idx}END'
+
+        processed_md = _RE_MERMAID_FENCE.sub(_collect_mermaid, markdown_text)
         html_body = markdown.markdown(
-            markdown_text, extensions=["codehilite", "tables", "toc"]
+            processed_md, extensions=["codehilite", "tables", "toc"]
         )
 
-        theme_key = "dark" if self._dark_mode else "light"
+        # Re-insert diagram content as <pre class="mermaid"> elements.
+        for idx, diagram in enumerate(mermaid_diagrams):
+            escaped = _html_entities.escape(diagram)
+            mermaid_div = f'<pre class="mermaid">{escaped}</pre>'
+            placeholder = f'MERMAIDBLOCK{idx}END'
+            html_body = html_body.replace(f'<p>{placeholder}</p>', mermaid_div)
+            html_body = html_body.replace(placeholder, mermaid_div)
+
         pygments_css = ""
         if PYGMENTS_AVAILABLE:
-            if self._pygments_css_by_theme[theme_key] is None:
-                style_name = "monokai" if self._dark_mode else "default"
-                self._pygments_css_by_theme[theme_key] = (
-                    HtmlFormatter(style=style_name).get_style_defs(".codehilite")
-                )
-            pygments_css = self._pygments_css_by_theme[theme_key] or ""
+            if self._pygments_css is None:
+                self._pygments_css = HtmlFormatter(style="default").get_style_defs(".codehilite")
+            pygments_css = self._pygments_css
 
         custom_css = self._get_custom_preview_css()
         html = ThemeManager.build_preview_html(
             html_body,
-            dark_mode=self._dark_mode,
+            dark_mode=False,
             custom_css=custom_css,
             pygments_css=pygments_css,
+            has_mermaid=bool(mermaid_diagrams),
         )
-        self.preview.setHtml(html)
+        base_url = QUrl.fromLocalFile(str(_MERMAID_RESOURCES_DIR) + "/")
+        self.preview.setHtml(html, base_url)
 
     # ==========================================================================
     # Analysis
@@ -296,7 +306,6 @@ class MainWindow(QMainWindow):
     def _get_find_replace_dialog(self) -> FindReplaceDialog:
         if self._find_replace_dialog is None:
             self._find_replace_dialog = FindReplaceDialog(self.editor, parent=self)
-            self._find_replace_dialog.apply_theme(self._dark_mode)
         return self._find_replace_dialog
 
     def open_find_dialog(self) -> None:

@@ -59,7 +59,9 @@ class MarkdownSyntaxHighlighter(QSyntaxHighlighter):
         self._dark_mode = bool(dark_mode)
         self._rule_formats: list[tuple[QRegularExpression, QTextCharFormat]] = []
         self._fence_re = QRegularExpression(r"^\s{0,3}(```|~~~)")
+        self._mermaid_fence_open_re = QRegularExpression(r"^\s{0,3}```mermaid\b")
         self._codeblock_format = QTextCharFormat()
+        self._mermaid_format = QTextCharFormat()
         self._build_formats()
         logger.debug(f"MarkdownSyntaxHighlighter initialized (dark_mode={dark_mode})")
 
@@ -173,6 +175,16 @@ class MarkdownSyntaxHighlighter(QSyntaxHighlighter):
             self._codeblock_format.setBackground(QColor(LightTheme.CODE_BG))
         self._codeblock_format.setFontFamily("SF Mono")
 
+        # Mermaid diagram block format — distinct lavender tint to signal diagram content.
+        self._mermaid_format = QTextCharFormat()
+        if self._dark_mode:
+            self._mermaid_format.setForeground(QColor("#c3a6ff"))
+            self._mermaid_format.setBackground(QColor("#1a1033"))
+        else:
+            self._mermaid_format.setForeground(QColor("#5a3e8c"))
+            self._mermaid_format.setBackground(QColor("#f3f0ff"))
+        self._mermaid_format.setFontFamily("SF Mono")
+
     def _add_rule(self, pattern: str, fmt: QTextCharFormat) -> None:
         """Add a highlighting rule.
 
@@ -191,14 +203,26 @@ class MarkdownSyntaxHighlighter(QSyntaxHighlighter):
         Args:
             text: The text block to highlight.
         """
-        # Check if we're continuing a code block from previous block
-        in_code_block = self.previousBlockState() == 1
+        # Block states: 0 = normal, 1 = inside code block, 2 = inside mermaid block.
+        prev_state = self.previousBlockState()
+        in_code_block = prev_state == 1
+        in_mermaid_block = prev_state == 2
 
         # Check for fence markers
         fence_match = self._fence_re.match(text)
         is_fence_line = fence_match.hasMatch()
+        is_mermaid_open = self._mermaid_fence_open_re.match(text).hasMatch()
 
-        # Handle code block content
+        # Handle mermaid diagram block content (state 2)
+        if in_mermaid_block:
+            self.setFormat(0, len(text), self._mermaid_format)
+            if is_fence_line:
+                self.setCurrentBlockState(0)
+            else:
+                self.setCurrentBlockState(2)
+            return
+
+        # Handle regular code block content (state 1)
         if in_code_block:
             self.setFormat(0, len(text), self._codeblock_format)
             if is_fence_line:
@@ -209,8 +233,14 @@ class MarkdownSyntaxHighlighter(QSyntaxHighlighter):
                 self.setCurrentBlockState(1)
             return
 
+        # Opening mermaid fence — must be checked before generic fence.
+        if is_mermaid_open:
+            self.setFormat(0, len(text), self._mermaid_format)
+            self.setCurrentBlockState(2)
+            return
+
         if is_fence_line:
-            # Opening fence - start code block
+            # Opening fence - start regular code block
             self.setFormat(0, len(text), self._codeblock_format)
             self.setCurrentBlockState(1)
             return

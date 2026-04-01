@@ -35,8 +35,8 @@ class TestMarkdownAnalyzer(unittest.TestCase):
         self.assertEqual(metrics['images'], 0)
         self.assertEqual(metrics['code_blocks'], 0)
 
-        # Check quality
-        self.assertEqual(metrics['readability_score'], 100)  # Empty gets max score
+        # Check quality — empty document has no prose, score is 0
+        self.assertEqual(metrics['readability_score'], 0)
         self.assertEqual(metrics['structure_quality'], "No structure")
 
     def test_simple_document(self):
@@ -149,11 +149,31 @@ Paragraph text."""
         self.assertEqual(metrics['tables'], 1)
 
     def test_get_readability_color(self):
-        """Test readability color helper function."""
-        self.assertEqual(get_readability_color(90), "green")
-        self.assertEqual(get_readability_color(70), "orange")
-        self.assertEqual(get_readability_color(50), "red")
-        self.assertEqual(get_readability_color(30), "red")
+        """Test readability colour thresholds against the Flesch Reading Ease scale."""
+        self.assertEqual(get_readability_color(90), "green")   # Very Easy
+        self.assertEqual(get_readability_color(70), "green")   # Fairly Easy (>= 70)
+        self.assertEqual(get_readability_color(60), "orange")  # Standard (>= 50, < 70)
+        self.assertEqual(get_readability_color(50), "orange")  # Fairly Difficult (>= 50)
+        self.assertEqual(get_readability_color(49), "red")     # Difficult (< 50)
+        self.assertEqual(get_readability_color(30), "red")     # Very Confusing
+
+    def test_readability_benchmark(self):
+        """Flesch Reading Ease scores align with expected difficulty bands."""
+        # Simple, short sentences — Flesch >= 70 (Fairly Easy or better)
+        easy = "The sun rises in the east. The sky is blue. Dogs run fast."
+        self.assertGreaterEqual(
+            MarkdownAnalyzer(easy).analyze()['readability_score'], 70
+        )
+
+        # Dense academic prose — Flesch < 50 (Difficult)
+        hard = (
+            "The epistemological ramifications of post-structuralist hermeneutics "
+            "necessitate a comprehensive re-evaluation of phenomenological ontological "
+            "presuppositions within contemporary philosophical discourse."
+        )
+        self.assertLess(
+            MarkdownAnalyzer(hard).analyze()['readability_score'], 50
+        )
 
 
 class TestInputValidation(unittest.TestCase):

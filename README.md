@@ -25,11 +25,12 @@ Existing Markdown editors either provide visual previewing with no quality analy
 
 - **Split-window interface**: Text editor on the left, live HTML preview on the right
 - **Real-time preview**: Updates automatically as you type (300 ms debounce)
-- **Syntax highlighting**: Editor highlights headings, bold, italic, code, links, and more
+- **Syntax highlighting**: Editor highlights headings, bold, italic, code, links, and Mermaid diagram blocks
 - **File operations**: New, Open, Save, Save As with standard keyboard shortcuts
 - **Recent files menu**: Quickly reopen previously edited documents
 - **Auto-save**: Periodically saves your work to prevent data loss
 - **Find & Replace**: Full find and replace dialog with case-sensitive and backward search
+- **Mermaid diagram rendering**: Fenced `mermaid` blocks are rendered as live diagrams in the preview via a locally bundled Mermaid v11 (no CDN, fully offline)
 - **Multi-format export**: Export to Markdown, Plain Text, HTML, Word (.docx), PDF, RTF, and ODT
 - **Custom preview CSS**: Load any CSS file to style the live preview
 - **GitHub-style rendering**: Preview styled similar to GitHub's markdown rendering
@@ -41,7 +42,7 @@ An intelligent panel that provides real-time document analysis and quality feedb
 
 - **Live statistics**: Word count, character count, line count, estimated reading time
 - **Structure analysis**: Heading hierarchy (H1–H6), links, images, code blocks, lists, blockquotes, tables
-- **Quality metrics**: Flesch-Kincaid readability score with colour-coded rating
+- **Quality metrics**: Flesch Reading Ease score (Flesch 1948) via `textstat`, with colour-coded rating
 - **Issue detection**: Flags empty links, duplicate headings, and formatting problems
 - **Auto-format**: One-click formatting that adds proper heading spacing, fixes list markers, and removes excessive blank lines
 
@@ -65,7 +66,7 @@ source venv/bin/activate        # macOS / Linux
 pip install -r requirements.txt
 
 # Run the application
-python markdown_editor.py
+python3 -m src.main
 ```
 
 ### Requirements
@@ -76,6 +77,7 @@ python markdown_editor.py
 | PySide6     | ≥ 6.8.0  | GUI framework             |
 | Markdown    | ≥ 3.5.1  | Markdown processing       |
 | Pygments    | ≥ 2.0    | Syntax highlighting       |
+| textstat    | ≥ 0.7.3  | Readability scoring       |
 | python-docx | optional | `.docx` export            |
 | reportlab   | optional | `.pdf` export (fallback)  |
 | weasyprint  | optional | `.pdf` export (preferred) |
@@ -86,7 +88,22 @@ RTF and ODT export are built-in and require no extra libraries.
 ## Usage
 
 ```bash
-python markdown_editor.py
+python3 -m src.main
+```
+
+### Headless CLI
+
+Analyse any Markdown file without opening the GUI:
+
+```bash
+# Document statistics (JSON)
+smart-md --stats document.md
+
+# Lint report (JSON) — exits 1 if issues found
+smart-md --lint document.md
+
+# Convenience alias
+smart-md-lint document.md
 ```
 
 ### Keyboard Shortcuts
@@ -123,19 +140,23 @@ The application detects which libraries are available and shows only supported f
 smart-markdown-editor/
 ├── markdown_editor.py         # Standalone legacy entry point
 ├── requirements.txt
+├── pyproject.toml             # PEP 621 packaging metadata
 ├── README.md
 ├── CONTRIBUTING.md
 ├── CHANGELOG.md
 ├── LICENSE
 ├── src/
-│   ├── main.py                # Modular entry point
-│   ├── config.py              # Themes, constants, settings keys
+│   ├── main.py                # GUI entry point
+│   ├── __main__.py            # Headless CLI (smart-md / smart-md-lint)
+│   ├── config.py              # Constants and settings keys
 │   ├── core/
 │   │   ├── analyzer.py        # MarkdownAnalyzer — document metrics
 │   │   └── highlighter.py     # MarkdownSyntaxHighlighter
 │   ├── exporters/
 │   │   ├── __init__.py        # Exporter registry
 │   │   └── builtin.py         # All built-in exporters
+│   ├── resources/
+│   │   └── mermaid.min.js     # Bundled Mermaid v11 (offline)
 │   ├── ui/
 │   │   ├── main_window.py     # MainWindow (QMainWindow)
 │   │   ├── assistant_panel.py # Smart Assistant side panel
@@ -144,11 +165,13 @@ smart-markdown-editor/
 │   └── utils/
 │       └── __init__.py        # File and validation utilities
 ├── tests/
-│   └── test_analyzer.py       # Unit tests for MarkdownAnalyzer
+│   ├── test_analyzer.py       # Unit tests for MarkdownAnalyzer
+│   └── test_cli.py            # Unit tests for headless CLI
 ├── test_exports.py            # Integration tests for all exporters
 └── .github/
     └── workflows/
-        └── ci.yml             # CI pipeline (lint, type-check, test, build)
+        ├── ci.yml             # CI pipeline (lint, type-check, test, build)
+        └── publish.yml        # PyPI publish via OIDC on version tags
 ```
 
 ## Running Tests
@@ -156,6 +179,12 @@ smart-markdown-editor/
 ```bash
 pip install pytest pytest-cov
 pytest tests/ test_exports.py -v --cov=src
+```
+
+On macOS with multiple Python versions, use the explicit interpreter:
+
+```bash
+/Library/Frameworks/Python.framework/Versions/3.12/bin/python3.12 -m pytest tests/ -v
 ```
 
 ## Technical Details
@@ -177,7 +206,7 @@ If you use Smart Markdown Editor in your research, please cite it using the meta
   author       = {Semoglou, Michail},
   title        = {Smart Markdown Editor},
   year         = {2026},
-  version      = {1.0.0},
+  version      = {1.1.0},
   publisher    = {Zenodo},
   doi          = {10.5281/zenodo.19328281},
   url          = {https://github.com/MichailSemoglou/smart-markdown-editor}

@@ -13,6 +13,38 @@ _No unreleased changes yet._
 
 ---
 
+## [1.1.0] — 2026-04-01
+
+### Added
+
+- **Flesch Reading Ease scoring** via `textstat`: readability metric is now
+  computed using the formally specified Flesch (1948) formula, replacing the
+  previous heuristic. Thresholds updated to green ≥ 70, orange ≥ 50, red < 50.
+- **Headless CLI** (`smart-md`): run `smart-md --stats FILE` or
+  `smart-md --lint FILE` to analyse any Markdown document from the terminal
+  without launching the GUI. Output is JSON; `--lint` exits 1 if issues are
+  found, 0 if clean, 2 if file not found. Convenience alias `smart-md-lint FILE`
+  also available.
+- **Mermaid diagram rendering**: fenced ` ```mermaid ` blocks are now rendered
+  as live diagrams in the HTML preview via a locally bundled Mermaid v11 library
+  (no CDN call, fully offline). The editor highlights `mermaid` blocks in a
+  distinct lavender tint.
+- `src/resources/mermaid.min.js` — Mermaid v11 bundled as a package resource.
+- `src/__main__.py` — CLI entry-point module.
+- `tests/test_cli.py` — 19 tests covering CLI schema, exit codes, and error paths.
+- `tests/test_analyzer.py` — added `test_readability_benchmark`.
+
+### Changed
+
+- `src/config.py`: `READABILITY_EXCELLENT/GOOD/POOR` replaced by
+  `READABILITY_GREEN = 70` and `READABILITY_ORANGE = 50`.
+- `src/core/highlighter.py`: added block state 2 for Mermaid fences.
+- `src/ui/main_window.py`: removed Dark Mode menu item and all associated code.
+- `pyproject.toml`: added `smart-md` and `smart-md-lint` entry-point scripts;
+  added `mermaid.min.js` to `package-data`.
+
+---
+
 ## [1.0.0] — 2026-03-30
 
 ### Added
@@ -101,5 +133,6 @@ _No unreleased changes yet._
 
 ---
 
-[Unreleased]: https://github.com/MichailSemoglou/smart-markdown-editor/compare/v1.0.0...HEAD
+[Unreleased]: https://github.com/MichailSemoglou/smart-markdown-editor/compare/v1.1.0...HEAD
+[1.1.0]: https://github.com/MichailSemoglou/smart-markdown-editor/compare/v1.0.0...v1.1.0
 [1.0.0]: https://github.com/MichailSemoglou/smart-markdown-editor/releases/tag/v1.0.0

@@ -19,4 +19,17 @@ print("Hello, World!")
 
 ---
 
+## Diagram Example
+
+```mermaid
+flowchart TD
+    A[Open File] --> B{File Exists?}
+    B -- Yes --> C[Load Content]
+    B -- No --> D[Show Error]
+    C --> E[Render Preview]
+    D --> E
+```
+
+---
+
 Thank you for testing!

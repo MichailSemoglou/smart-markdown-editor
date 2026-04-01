@@ -5,3 +5,4 @@ python-docx>=0.8.11
 reportlab>=3.6.0
 weasyprint>=59.0
 html2text>=2020.1.16
+textstat>=0.7.3

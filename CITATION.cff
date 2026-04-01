@@ -17,8 +17,8 @@ authors:
     given-names: Michail
     orcid: https://orcid.org/0009-0003-3268-5657
     affiliation: College of Design and Innovation, Tongji University
-version: 1.0.0
-date-released: "2026-03-30"
+version: 1.1.0
+date-released: "2026-04-01"
 license: MIT
 repository-code: https://github.com/MichailSemoglou/smart-markdown-editor
 url: https://github.com/MichailSemoglou/smart-markdown-editor

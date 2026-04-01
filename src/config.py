@@ -12,7 +12,7 @@ from typing import Final
 # =============================================================================
 
 APP_NAME: Final[str] = "Smart Markdown Editor"
-APP_VERSION: Final[str] = "1.0.0"
+APP_VERSION: Final[str] = "1.1.0"
 APP_ORGANIZATION: Final[str] = "smart-markdown-editor"
 
 # =============================================================================
@@ -137,10 +137,12 @@ EXPORT_FILE_FILTERS: Final[dict[str, str]] = {
 # Quality Thresholds
 # =============================================================================
 
-# Readability score thresholds
-READABILITY_EXCELLENT: Final[int] = 80
-READABILITY_GOOD: Final[int] = 60
-READABILITY_POOR: Final[int] = 40
+# Flesch Reading Ease colour thresholds (Flesch 1948)
+# >= 70: Fairly Easy or better  → green
+# >= 50: Standard / Fairly Difficult → orange
+# <  50: Difficult / Very Confusing  → red
+READABILITY_GREEN: Final[int] = 70
+READABILITY_ORANGE: Final[int] = 50
 
 # =============================================================================
 # Window Settings

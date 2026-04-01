@@ -112,6 +112,7 @@ class ThemeManager:
         dark_mode: bool,
         custom_css: str = "",
         pygments_css: str = "",
+        has_mermaid: bool = False,
     ) -> str:
         """Wrap *html_body* in a fully styled HTML document for QWebEngineView."""
         if dark_mode:
@@ -128,6 +129,16 @@ class ThemeManager:
             muted = LightTheme.MUTED_COLOR
             link = "#0366d6"
             code_bg = LightTheme.CODE_BG
+
+        mermaid_theme = "dark" if dark_mode else "default"
+        _mermaid_scripts = (
+            f'<script src="mermaid.min.js"></script>\n'
+            f'  <script>'
+            f'mermaid.initialize({{startOnLoad:true,theme:"{mermaid_theme}",securityLevel:"strict"}});'
+            f'</script>'
+            if has_mermaid
+            else ""
+        )
 
         return f"""<!DOCTYPE html>
 <html>
@@ -202,8 +213,10 @@ class ThemeManager:
     a:hover {{ text-decoration: underline; }}
     img {{ max-width: 100%; height: auto; }}
     hr {{ border: none; border-top: 1px solid {border}; height: 1px; margin: 24px 0; }}
+    .mermaid {{ text-align: center; margin: 16px 0; }}
     {custom_css}
   </style>
+  {_mermaid_scripts}
 </head>
 <body>
   {html_body}

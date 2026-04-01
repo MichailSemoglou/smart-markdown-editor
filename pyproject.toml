@@ -8,7 +8,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "smart-markdown-editor"
-version = "1.0.0"
+version = "1.1.0"
 description = "A cross-platform desktop Markdown editor with real-time preview and an integrated Smart Assistant for document quality analysis."
 readme = "README.md"
 license = { file = "LICENSE" }
@@ -54,6 +54,7 @@ dependencies = [
     "python-docx>=0.8.11",
     "reportlab>=3.6.0",
     "html2text>=2020.1.16",
+    "textstat>=0.7.3",
 ]
 
 [project.optional-dependencies]
@@ -88,6 +89,10 @@ DOI           = "https://doi.org/10.5281/zenodo.19328281"
 [project.scripts]
 # GUI application — opens the editor window.
 smart-markdown-editor = "src.main:main"
+# Headless CLI — document analysis without launching the GUI.
+smart-md = "src.__main__:main"
+# Convenience alias: smart-md-lint document.md
+smart-md-lint = "src.__main__:lint_entry"
 
 # ---------------------------------------------------------------------------
 # Package discovery
@@ -99,7 +104,7 @@ include = ["src*"]
 exclude = ["tests*", "docs*"]
 
 [tool.setuptools.package-data]
-"src" = ["py.typed"]
+"src" = ["py.typed", "resources/mermaid.min.js"]
 
 # ---------------------------------------------------------------------------
 # Ruff (linter)
